@@ -129,8 +129,8 @@ render_header('Choose Duration', 'book');
             <div class="price-deposit-note">
                 Deposit due today: <strong>$<?= number_format((float)$attraction['deposit_amount'], 2) ?></strong>
             </div>
-            <p class="text-xs text-dim text-center mt-1">Add-ons, travel fee, and any coupons applied at checkout.</p>
-            <p class="text-xs text-dim text-center mt-1">
+            <p class="text-sm text-center mt-1" style="color:var(--text);">Add-ons, travel fee, and any coupons applied at checkout.</p>
+            <p class="text-sm text-center mt-1" style="color:var(--orange);">
                 Need more than 6 hours?
                 <a href="https://sherwoodadventure.com/contact-us.html" target="_blank">Contact us</a>
                 to arrange a custom booking.
