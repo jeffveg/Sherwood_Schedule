@@ -26,7 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($attraction) {
             // If attraction changed, clear downstream wizard state
-            if (wizard_get('attraction_id') !== $attraction_id) {
+            // Cast both to int — sessions can return stored ints as strings
+            if ((int)wizard_get('attraction_id') !== $attraction_id) {
                 wizard_clear();
             }
             wizard_set('attraction_id',  $attraction_id);

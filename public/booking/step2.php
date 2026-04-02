@@ -14,7 +14,7 @@ wizard_require_step(2);
 $attraction = wizard_get('attraction');
 $min_hours  = (float)$attraction['min_hours'];
 $increment  = (float)$attraction['hour_increment'];
-$max_hours  = 12.0; // practical upper limit
+$max_hours  = 6.0;  // over 6 hrs requires manual admin booking (helpers needed)
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -33,7 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $error = 'Please select a valid duration.';
 }
 
-$current_hours = wizard_get('hours', $min_hours);
+// Ensure stored hours are valid for this attraction (guards against attraction change edge cases)
+$current_hours = max($min_hours, (float)wizard_get('hours', $min_hours));
 
 // Build list of valid hour options
 $options = [];
@@ -55,9 +56,8 @@ render_header('Choose Duration', 'book');
     <div class="text-center mb-4">
         <h2>How Long Is Your Event?</h2>
         <p class="text-dim">
-            <?= h($attraction['name']) ?> —
-            <?= $min_hours == (int)$min_hours ? (int)$min_hours : $min_hours ?> hr minimum,
-            then $<?= number_format($attraction['additional_hourly_rate'], 0) ?>/hr after.
+            <?= h($attraction['name']) ?> &mdash;
+            <?= (int)$min_hours ?> hr minimum
         </p>
     </div>
 
@@ -130,6 +130,11 @@ render_header('Choose Duration', 'book');
                 Deposit due today: <strong>$<?= number_format((float)$attraction['deposit_amount'], 2) ?></strong>
             </div>
             <p class="text-xs text-dim text-center mt-1">Add-ons, travel fee, and any coupons applied at checkout.</p>
+            <p class="text-xs text-dim text-center mt-1">
+                Need more than 6 hours?
+                <a href="https://sherwoodadventure.com/contact-us.html" target="_blank">Contact us</a>
+                to arrange a custom booking.
+            </p>
         </div>
 
         <div class="wizard-nav">
