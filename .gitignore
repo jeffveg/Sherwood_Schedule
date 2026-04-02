@@ -3,4 +3,5 @@ config/config.php
 *.log
 .DS_Store
 Thumbs.db
-uploads/
+uploads/*
+!uploads/.htaccess
