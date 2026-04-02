@@ -335,8 +335,8 @@ VALUES (1, 'Goodyear, AZ 85338', 33.4353, -112.3576, 50, 1.00);
 
 -- Attractions
 INSERT INTO attractions (name, slug, description, min_hours, hour_increment, deposit_amount, sort_order) VALUES
-    ('Archery Tag',          'archery-tag', 'Dodgeball meets archery — foam-tipped arrows, full-field action.',            2.0, 2.0, 100.00, 1),
-    ('Hoverball',            'hoverball',   'S.A.F.E. Archery Hoverball — inflatable floating targets, ages 7 to 107.',   2.0, 2.0,  50.00, 2),
+    ('Archery Tag',          'archery-tag', 'Dodgeball meets archery — foam-tipped arrows, full-field action.',            2.0, 1.0, 100.00, 1),
+    ('Hoverball',            'hoverball',   'S.A.F.E. Archery Hoverball — inflatable floating targets, ages 7 to 107.',   2.0, 1.0,  50.00, 2),
     ('Archery Tag + Hoverball', 'combo',    'Both attractions — the ultimate Sherwood Adventure experience.',              3.0, 1.0, 150.00, 3);
 
 -- Default settings
