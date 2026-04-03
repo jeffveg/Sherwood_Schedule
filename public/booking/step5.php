@@ -92,10 +92,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $phone_digits = preg_replace('/\D/', '', $fields['phone']);
     if (strlen($phone_digits) < 10) { $errors[] = 'A valid 10-digit phone number is required.'; $error_tab = min($error_tab, 0); }
 
-    if ($fields['venue_name']    === '') { $errors[] = 'Venue name is required.';    if (empty($errors) || $error_tab > 1) $error_tab = 1; }
-    if ($fields['venue_address'] === '') { $errors[] = 'Venue address is required.'; if (empty($errors) || $error_tab > 1) $error_tab = 1; }
-    if ($fields['venue_city']    === '') { $errors[] = 'Venue city is required.';    if (empty($errors) || $error_tab > 1) $error_tab = 1; }
-    if ($fields['venue_state']   === '') { $errors[] = 'Venue state is required.';   if (empty($errors) || $error_tab > 1) $error_tab = 1; }
+    if ($fields['venue_address'] === '') { $errors[] = 'Venue address is required.'; if ($error_tab < 1) $error_tab = 1; }
+    if ($fields['venue_city']    === '') { $errors[] = 'Venue city is required.';    if ($error_tab < 1) $error_tab = 1; }
+    if ($fields['venue_state']   === '') { $errors[] = 'Venue state is required.';   if ($error_tab < 1) $error_tab = 1; }
 
     if (empty($errors)) {
         // Calculate travel fee via Google Maps Distance Matrix API
@@ -118,9 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $curl_err = curl_error($ch);
         curl_close($ch);
 
-        if ($curl_err) {
-            $travel_error = 'Could not calculate travel distance. Please continue and we will confirm any travel fee separately.';
-        } else {
+        if (!$curl_err) {
             $data = json_decode($response, true);
             if (
                 isset($data['rows'][0]['elements'][0]['status']) &&
@@ -128,21 +125,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ) {
                 $meters = $data['rows'][0]['elements'][0]['distance']['value'];
                 $travel_miles = round($meters / 1609.344, 2);
-            } else {
-                $travel_error = 'Could not find that venue address. Please check it and try again.';
-                if (
-                    isset($data['rows'][0]['elements'][0]['status']) &&
-                    $data['rows'][0]['elements'][0]['status'] !== 'NOT_FOUND'
-                ) {
-                    $travel_error = 'Could not calculate travel distance. Please continue and we will confirm any travel fee separately.';
-                }
             }
+            // Any non-OK response (NOT_FOUND, ZERO_RESULTS, REQUEST_DENIED, etc.)
+            // — proceed with 0 miles; admin will confirm travel fee if needed.
         }
 
-        if ($travel_error && strpos($travel_error, 'check it') !== false) {
-            $errors[]   = $travel_error;
-            $error_tab  = 1;
-        } else {
+        {
             $travel_fee = calc_travel_fee(
                 $travel_miles,
                 (float)$travel_config['free_miles_threshold'],
@@ -261,7 +249,7 @@ render_header('Venue & Contact', 'book');
                 <div class="tab-panel" id="tab-1">
                     <div class="panel">
                         <div class="form-group">
-                            <label class="form-label" for="venue_name">Venue Name <span class="required">*</span></label>
+                            <label class="form-label" for="venue_name">Venue Name <span class="text-dim" style="font-weight:400;">(optional)</span></label>
                             <input type="text" id="venue_name" name="venue_name" class="form-input"
                                    value="<?= h($fields['venue_name']) ?>"
                                    placeholder="e.g. Goodyear Ballpark, Estrella Mountain Park">
