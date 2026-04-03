@@ -546,6 +546,14 @@ main { flex: 1; padding: 2rem 0 4rem; }
     gap: 1rem;
 }
 
+/* City / State / ZIP row: city grows, state fixed ~70px, zip fixed ~120px */
+.form-row--3 {
+    display: grid;
+    grid-template-columns: 1fr 70px 120px;
+    gap: 1rem;
+    align-items: end;
+}
+
 label {
     display: block;
     font-size: 0.875rem;
@@ -680,6 +688,64 @@ select {
     color: var(--text);
     cursor: pointer;
     margin: 0;
+}
+
+/* ---- Radio Pill Toggle Group ------------------------------ */
+/* Used for best-call-time, yes/no questions, etc.            */
+.radio-pill-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.radio-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    cursor: pointer;
+    margin: 0;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+}
+
+.radio-pill input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.radio-pill span,
+.radio-pill:not(:has(span)) {
+    /* The visible label doubles as the pill */
+}
+
+/* Target the text node after the hidden input */
+.radio-pill {
+    background-color: var(--charcoal-lt);
+    border: 1px solid var(--charcoal-lt);
+    border-radius: 999px;
+    padding: 0.35rem 1rem;
+    font-size: 0.875rem;
+    color: var(--text-dim);
+    transition: background var(--transition), border-color var(--transition), color var(--transition);
+    user-select: none;
+}
+
+.radio-pill:hover {
+    border-color: var(--gold);
+    color: var(--text);
+}
+
+.radio-pill:has(input:checked),
+.radio-pill.checked {
+    background-color: var(--gold);
+    border-color: var(--gold);
+    color: var(--black);
+    font-weight: 700;
 }
 
 /* ---- Buttons ---------------------------------------------- */
@@ -1212,7 +1278,8 @@ select {
 @media (max-width: 600px) {
     .card-grid { grid-template-columns: 1fr; }
 
-    .form-row { grid-template-columns: 1fr; }
+    .form-row,
+    .form-row--3 { grid-template-columns: 1fr; }
 
     .data-table { font-size: 0.78rem; }
     .data-table th, .data-table td { padding: 0.5rem 0.6rem; }

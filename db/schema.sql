@@ -201,6 +201,13 @@ CREATE TABLE bookings (
     is_admin_booking    TINYINT(1) NOT NULL DEFAULT 0,
     admin_notes         TEXT NULL,
 
+    -- Event details (collected at booking)
+    call_time_pref      VARCHAR(20) NULL,              -- Morning/Afternoon/Evening/Weekends/Anytime
+    tournament_bracket  VARCHAR(30) NULL,              -- No/Single Elimination/Double Elimination/Round Robin/Other
+    allow_publish       TINYINT(1)  NULL,              -- publish on upcoming events page
+    allow_advertise     TINYINT(1)  NULL,              -- advertise services at event
+    event_notes         TEXT        NULL,              -- free-text additional info
+
     -- Cancellation
     cancelled_at        TIMESTAMP NULL,
     cancellation_reason TEXT NULL,
@@ -334,9 +341,9 @@ VALUES (1, 'Goodyear, AZ 85338', 33.4353, -112.3576, 50, 1.00);
 
 -- Attractions
 INSERT INTO attractions (name, slug, description, min_hours, hour_increment, deposit_amount, sort_order) VALUES
-    ('Archery Tag',          'archery-tag', 'Dodgeball meets archery — foam-tipped arrows, full-field action.',            2.0, 1.0, 100.00, 1),
-    ('Hoverball',            'hoverball',   'S.A.F.E. Archery Hoverball — inflatable floating targets, ages 7 to 107.',   2.0, 1.0,  50.00, 2),
-    ('Archery Tag + Hoverball', 'combo',    'Both attractions — the ultimate Sherwood Adventure experience.',              3.0, 1.0, 150.00, 3);
+    ('Archery Tag',          'archery-tag', 'Dodgeball meets archery — foam-tipped arrows, full-field action. Needs 40×80 ft with 20 ft clearance (indoors or outdoors).',                                                     2.0, 1.0, 100.00, 1),
+    ('Hoverball',            'hoverball',   'S.A.F.E. Archery Hoverball — inflatable floating targets, ages 7 to 107. Needs 10×20 ft with 9 ft clearance (indoors or outdoors).',                                                2.0, 1.0,  50.00, 2),
+    ('Archery Tag + Hoverball', 'combo',    'Both attractions — the ultimate Sherwood Adventure experience. Archery Tag: 40×80 ft / 20 ft tall. Hoverball: 10×20 ft / 9 ft tall.',                                               3.0, 1.0, 150.00, 3);
 
 -- Default settings
 INSERT INTO settings (setting_key, setting_value, description) VALUES
