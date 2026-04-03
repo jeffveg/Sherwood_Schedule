@@ -295,7 +295,7 @@ render_header('Venue & Contact', 'book');
                     <div class="panel">
                         <?php if (in_array($attraction['slug'], ['archery-tag', 'combo'])): ?>
                         <div class="alert alert-info mb-3" style="font-size:0.875rem;">
-                            <strong>Waiver required:</strong> Each player must sign our standard liability waiver before participating in Archery Tag. We'll send waiver instructions with your confirmation email.
+                            <strong>Waiver:</strong> Players sign our standard liability waiver at the event. If you'd like waivers sent in advance, just mention it in the notes below.
                         </div>
                         <?php endif; ?>
 

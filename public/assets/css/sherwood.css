@@ -1313,7 +1313,7 @@ body:has(.mobile-continue-bar) {
         align-items: center;
         gap: 0.5rem;
         position: fixed;
-        top: 70px; /* below the sticky site header */
+        top: 90px; /* below the sticky site header + gold border glow */
         right: 1.5rem;
         background: var(--charcoal-lt);
         border: 1px solid rgba(254,214,17,0.4);
