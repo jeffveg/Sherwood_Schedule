@@ -134,7 +134,10 @@ render_header('Choose Date & Time', 'book');
         <!-- Legend -->
         <div class="d-flex gap-2 flex-wrap mb-2" style="font-size:0.78rem; justify-content:center;">
             <span><span style="display:inline-block;width:12px;height:12px;background:var(--gold);border-radius:3px;margin-right:4px;vertical-align:middle;"></span>Selected</span>
-            <span style="color:var(--orange)"><span style="display:inline-block;width:12px;height:12px;border:2px solid var(--orange);border-radius:3px;margin-right:4px;vertical-align:middle;"></span>Today</span>
+            <span style="color:var(--orange)">
+                <span style="display:inline-block;position:relative;width:12px;height:16px;vertical-align:middle;margin-right:4px;">
+                    <span style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:5px;height:5px;background:var(--orange);border-radius:50%;"></span>
+                </span>Today</span>
             <span style="color:#c0392b"><span style="display:inline-block;width:12px;height:12px;background:rgba(192,57,43,0.2);border-radius:3px;margin-right:4px;vertical-align:middle;"></span>Not available</span>
             <span style="color:#555"><span style="display:inline-block;width:12px;height:12px;background:#333;border-radius:3px;margin-right:4px;vertical-align:middle;"></span>Past</span>
         </div>
