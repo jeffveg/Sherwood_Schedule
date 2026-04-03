@@ -1174,6 +1174,9 @@ select {
 
     .price-summary {
         position: static;
+    }
+
+    .booking-layout__aside {
         order: -1;
     }
 

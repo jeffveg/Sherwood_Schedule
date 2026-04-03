@@ -197,10 +197,16 @@ render_header('Add-ons', 'book');
 
                     <hr class="price-divider">
 
-                    <div class="price-line price-line--tax">
-                        <span class="price-line__label">Tax (<?= number_format($combined_rate * 100, 1) ?>%)</span>
-                        <span id="price-tax">—</span>
+                    <?php foreach ($tax_rates as $rate): ?>
+                    <div class="price-line price-line--tax tax-line"
+                         data-rate="<?= $rate['rate'] ?>"
+                         data-label="<?= h($rate['label']) ?>">
+                        <span class="price-line__label">
+                            <?= h($rate['label']) ?> (<?= number_format($rate['rate'] * 100, 1) ?>%)
+                        </span>
+                        <span class="tax-amount">—</span>
                     </div>
+                    <?php endforeach; ?>
 
                     <hr class="price-divider">
 
@@ -234,7 +240,6 @@ render_header('Add-ons', 'book');
 <script>
 (function () {
     const attractionPrice = <?= $attraction_price ?>;
-    const taxRate         = <?= $combined_rate ?>;
     const depositAmount   = <?= (float)$attraction['deposit_amount'] ?>;
 
     // Add-on price data keyed by addon ID
@@ -289,10 +294,17 @@ render_header('Add-ons', 'book');
         }, 0);
 
         const taxableAmt = attractionPrice + taxableAddons;
-        const finalTax   = Math.round(taxableAmt * taxRate * 100) / 100;
-        const finalTotal = taxableAmt + nonTaxableAddons + finalTax;
 
-        document.getElementById('price-tax').textContent   = fmt(finalTax);
+        // Update each tax line separately
+        let finalTax = 0;
+        document.querySelectorAll('.tax-line').forEach(line => {
+            const rate   = parseFloat(line.dataset.rate);
+            const amount = Math.round(taxableAmt * rate * 100) / 100;
+            finalTax += amount;
+            line.querySelector('.tax-amount').textContent = fmt(amount);
+        });
+
+        const finalTotal = taxableAmt + nonTaxableAddons + finalTax;
         document.getElementById('price-total').textContent = fmt(finalTotal);
 
         const mobileTotal = document.getElementById('mobile-total');
