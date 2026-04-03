@@ -460,13 +460,26 @@ main { flex: 1; padding: 2rem 0 4rem; }
     box-shadow: var(--glow-gold);
 }
 
-.cal-day.today { border-color: var(--orange); }
+.cal-day.today {
+    border: 2px solid var(--orange);
+    color: var(--orange);
+    font-weight: 700;
+}
 
-.cal-day.unavailable,
+/* Past dates — dark, barely visible */
 .cal-day.past {
-    color: var(--charcoal-lt);
+    color: #555;
+    cursor: not-allowed;
+    background-color: transparent;
+}
+
+/* Closed/unavailable dates — visible but clearly blocked */
+.cal-day.unavailable:not(.past) {
+    color: #c0392b;
+    background-color: rgba(192, 57, 43, 0.08);
     cursor: not-allowed;
     text-decoration: line-through;
+    text-decoration-color: rgba(192, 57, 43, 0.5);
 }
 
 .cal-day.empty { cursor: default; }

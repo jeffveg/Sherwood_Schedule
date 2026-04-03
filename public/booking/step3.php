@@ -132,11 +132,17 @@ render_header('Choose Date & Time', 'book');
         </div>
 
         <!-- Legend -->
-        <div class="d-flex gap-2 flex-wrap mb-3" style="font-size:0.78rem; justify-content:center;">
-            <span><span style="display:inline-block;width:12px;height:12px;background:var(--gold);border-radius:3px;margin-right:4px;"></span>Selected</span>
-            <span><span style="display:inline-block;width:12px;height:12px;border:1px solid var(--orange);border-radius:3px;margin-right:4px;"></span>Today</span>
-            <span style="color:var(--text-dim)"><span style="display:inline-block;width:12px;height:12px;background:var(--charcoal-lt);border-radius:3px;margin-right:4px;opacity:0.4;"></span>Unavailable</span>
+        <div class="d-flex gap-2 flex-wrap mb-2" style="font-size:0.78rem; justify-content:center;">
+            <span><span style="display:inline-block;width:12px;height:12px;background:var(--gold);border-radius:3px;margin-right:4px;vertical-align:middle;"></span>Selected</span>
+            <span style="color:var(--orange)"><span style="display:inline-block;width:12px;height:12px;border:2px solid var(--orange);border-radius:3px;margin-right:4px;vertical-align:middle;"></span>Today</span>
+            <span style="color:#c0392b"><span style="display:inline-block;width:12px;height:12px;background:rgba(192,57,43,0.2);border-radius:3px;margin-right:4px;vertical-align:middle;"></span>Not available</span>
+            <span style="color:#555"><span style="display:inline-block;width:12px;height:12px;background:#333;border-radius:3px;margin-right:4px;vertical-align:middle;"></span>Past</span>
         </div>
+        <p class="text-center text-xs mb-3" style="color:var(--text-dim);">
+            Don't see the date you need?
+            <a href="https://sherwoodadventure.com/contact-us.html" target="_blank">Contact us</a>
+            — we may be able to accommodate special requests.
+        </p>
 
         <div class="wizard-nav">
             <a href="<?= wizard_step_url(2) ?>" class="btn btn-ghost">&larr; Back</a>
@@ -229,16 +235,14 @@ render_header('Choose Date & Time', 'book');
             let cls = 'cal-day';
             if (dateStr === today)         cls += ' today';
             if (dateStr === selectedDate)  cls += ' selected';
-            if (status === 'past')         cls += ' past unavailable';
-            else if (status === 'soon')    cls += ' past unavailable'; // too soon
+            if (status === 'past')         cls += ' past';
+            else if (status === 'soon')    cls += ' past';       // too soon to book
             else if (status === 'closed')  cls += ' unavailable';
 
             cell.className = cls;
             cell.dataset.date = dateStr;
 
-            if (status === 'available' && dateStr !== selectedDate) {
-                cell.addEventListener('click', () => selectDate(dateStr));
-            } else if (dateStr === selectedDate) {
+            if (status === 'available') {
                 cell.addEventListener('click', () => selectDate(dateStr));
             }
 
