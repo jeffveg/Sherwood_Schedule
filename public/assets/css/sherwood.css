@@ -1081,6 +1081,186 @@ select {
 
 .terms-box h4:first-child { margin-top: 0; }
 
+/* ---- Review Grid ------------------------------------------ */
+.review-grid { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.review-row {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.9rem;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.review-row:last-child { border-bottom: none; }
+
+.review-label {
+    flex: 0 0 110px;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+    padding-top: 0.1rem;
+}
+
+.review-value { flex: 1; color: var(--text); }
+
+/* ---- Terms sections inside the scrollbox ------------------ */
+.terms-section { margin-bottom: 0.75rem; }
+.terms-section:last-child { margin-bottom: 0; }
+.terms-section strong { color: var(--orange); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.terms-section p { margin: 0.25rem 0 0; }
+
+/* ---- Agree checkbox --------------------------------------- */
+.review-agree-wrap {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text);
+    margin-bottom: 0;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+}
+
+.review-agree-wrap input[type="checkbox"] {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    border: 2px solid var(--charcoal-lt);
+    border-radius: 4px;
+    background: var(--charcoal);
+    cursor: pointer;
+    position: relative;
+    margin-top: 2px;
+    transition: all var(--transition);
+}
+
+.review-agree-wrap input[type="checkbox"]:checked {
+    background-color: var(--gold);
+    border-color: var(--gold);
+}
+
+.review-agree-wrap input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--black);
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* ---- Payment Option cards --------------------------------- */
+.payment-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.payment-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+    border: 2px solid var(--charcoal-lt);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color var(--transition), background var(--transition);
+}
+
+.payment-option input[type="radio"] {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    border: 2px solid var(--charcoal-lt);
+    border-radius: 50%;
+    background: var(--charcoal);
+    cursor: pointer;
+    position: relative;
+    margin-top: 3px;
+    transition: all var(--transition);
+}
+
+.payment-option input[type="radio"]:checked {
+    border-color: var(--gold);
+    background: var(--gold);
+}
+
+.payment-option input[type="radio"]:checked::after {
+    content: '';
+    position: absolute;
+    width: 8px; height: 8px;
+    background: var(--black);
+    border-radius: 50%;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.payment-option.selected {
+    border-color: var(--gold);
+    background: rgba(254,214,17,0.05);
+}
+
+.payment-option__title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text);
+    margin-bottom: 0.2rem;
+}
+
+.payment-option__amount {
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    color: var(--gold);
+    margin-bottom: 0.2rem;
+}
+
+.payment-option__note { font-size: 0.8rem; }
+
+@media (max-width: 500px) {
+    .payment-options { grid-template-columns: 1fr; }
+}
+
+/* ---- Coupon applied state --------------------------------- */
+.coupon-applied {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 1rem;
+    background: rgba(254,214,17,0.08);
+    border: 1px solid rgba(254,214,17,0.35);
+    border-radius: var(--radius-sm);
+}
+
+.coupon-applied__code {
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.08em;
+    font-size: 0.95rem;
+}
+
+.coupon-applied__desc { flex: 1; color: var(--text-dim); font-size: 0.85rem; }
+
+.coupon-applied__remove {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+    transition: color var(--transition);
+}
+
+.coupon-applied__remove:hover { color: var(--danger); }
+
 /* ---- Status Badges ---------------------------------------- */
 .badge {
     display: inline-block;
