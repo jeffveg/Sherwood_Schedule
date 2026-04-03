@@ -955,6 +955,62 @@ select {
     color: #7ab8df;
 }
 
+/* ---- Form Tabs -------------------------------------------- */
+.form-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--charcoal-lt);
+    margin-bottom: 0;
+}
+
+.form-tab {
+    flex: 1;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    padding: 0.65rem 0.5rem;
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: color var(--transition), border-color var(--transition);
+}
+
+.form-tab:hover { color: var(--text); }
+
+.form-tab.active {
+    color: var(--gold);
+    border-bottom-color: var(--gold);
+}
+
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.active {
+    display: block;
+}
+
+.tab-panel .panel {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    margin-bottom: 0;
+}
+
+/* Next/Prev buttons inside a tab */
+.tab-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid rgba(255,255,255,0.07);
+}
+
 /* ---- Section / Panel ------------------------------------- */
 .panel {
     background-color: var(--charcoal-lt);

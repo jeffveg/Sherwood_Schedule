@@ -45,6 +45,7 @@ foreach ($selected_addons as $item) {
 }
 
 $errors = [];
+$error_tab = 0; // which tab to open if there are errors (0=contact, 1=venue, 2=details)
 $travel_miles = 0.0;
 $travel_fee   = 0.0;
 
@@ -82,27 +83,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $fields[$k] = trim($_POST[$k] ?? '');
     }
 
-    // Validation
-    if ($fields['first_name'] === '') $errors[] = 'First name is required.';
-    if ($fields['last_name']  === '') $errors[] = 'Last name is required.';
+    // Validation — track which tab each error belongs to
+    if ($fields['first_name'] === '') { $errors[] = 'First name is required.';  $error_tab = min($error_tab, 0); }
+    if ($fields['last_name']  === '') { $errors[] = 'Last name is required.';   $error_tab = min($error_tab, 0); }
     if ($fields['email'] === '' || !filter_var($fields['email'], FILTER_VALIDATE_EMAIL)) {
-        $errors[] = 'A valid email address is required.';
+        $errors[] = 'A valid email address is required.'; $error_tab = min($error_tab, 0);
     }
-    // Normalize phone: strip to digits
     $phone_digits = preg_replace('/\D/', '', $fields['phone']);
-    if (strlen($phone_digits) < 10) $errors[] = 'A valid 10-digit phone number is required.';
+    if (strlen($phone_digits) < 10) { $errors[] = 'A valid 10-digit phone number is required.'; $error_tab = min($error_tab, 0); }
 
-    if ($fields['venue_name']    === '') $errors[] = 'Venue name is required.';
-    if ($fields['venue_address'] === '') $errors[] = 'Venue address is required.';
-    if ($fields['venue_city']    === '') $errors[] = 'Venue city is required.';
-    if ($fields['venue_state']   === '') $errors[] = 'Venue state is required.';
+    if ($fields['venue_name']    === '') { $errors[] = 'Venue name is required.';    if (empty($errors) || $error_tab > 1) $error_tab = 1; }
+    if ($fields['venue_address'] === '') { $errors[] = 'Venue address is required.'; if (empty($errors) || $error_tab > 1) $error_tab = 1; }
+    if ($fields['venue_city']    === '') { $errors[] = 'Venue city is required.';    if (empty($errors) || $error_tab > 1) $error_tab = 1; }
+    if ($fields['venue_state']   === '') { $errors[] = 'Venue state is required.';   if (empty($errors) || $error_tab > 1) $error_tab = 1; }
 
     if (empty($errors)) {
         // Calculate travel fee via Google Maps Distance Matrix API
         $destination = urlencode(
             $fields['venue_address'] . ', ' . $fields['venue_city'] . ', ' . $fields['venue_state'] . ' ' . $fields['venue_zip']
         );
-        $origin = urlencode($travel_config['base_address']);
+        $origin  = urlencode($travel_config['base_address']);
         $api_key = GOOGLE_MAPS_API_KEY;
 
         $maps_url = "https://maps.googleapis.com/maps/api/distancematrix/json"
@@ -126,7 +126,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 isset($data['rows'][0]['elements'][0]['status']) &&
                 $data['rows'][0]['elements'][0]['status'] === 'OK'
             ) {
-                // Distance is in meters — convert to miles
                 $meters = $data['rows'][0]['elements'][0]['distance']['value'];
                 $travel_miles = round($meters / 1609.344, 2);
             } else {
@@ -135,40 +134,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     isset($data['rows'][0]['elements'][0]['status']) &&
                     $data['rows'][0]['elements'][0]['status'] !== 'NOT_FOUND'
                 ) {
-                    // Non-address issue (API error, zero results, etc.) — allow through with 0 miles
                     $travel_error = 'Could not calculate travel distance. Please continue and we will confirm any travel fee separately.';
                 }
             }
         }
 
         if ($travel_error && strpos($travel_error, 'check it') !== false) {
-            $errors[] = $travel_error;
+            $errors[]   = $travel_error;
+            $error_tab  = 1;
         } else {
-            // Proceed even if Maps had a transient error (fee defaults to 0)
             $travel_fee = calc_travel_fee(
                 $travel_miles,
                 (float)$travel_config['free_miles_threshold'],
                 (float)$travel_config['rate_per_mile']
             );
 
-            // Store in session
-            wizard_set('customer_first',   $fields['first_name']);
-            wizard_set('customer_last',    $fields['last_name']);
-            wizard_set('customer_email',   $fields['email']);
-            wizard_set('customer_phone',   $phone_digits);
-            wizard_set('customer_org',     $fields['organization']);
-            wizard_set('venue_name',       $fields['venue_name']);
-            wizard_set('venue_address',    $fields['venue_address']);
-            wizard_set('venue_city',       $fields['venue_city']);
-            wizard_set('venue_state',      $fields['venue_state']);
-            wizard_set('venue_zip',        $fields['venue_zip']);
-            wizard_set('travel_miles',     $travel_miles);
-            wizard_set('travel_fee',       $travel_fee);
-            wizard_set('call_time_pref',   $fields['call_time_pref']);
+            wizard_set('customer_first',     $fields['first_name']);
+            wizard_set('customer_last',      $fields['last_name']);
+            wizard_set('customer_email',     $fields['email']);
+            wizard_set('customer_phone',     $phone_digits);
+            wizard_set('customer_org',       $fields['organization']);
+            wizard_set('venue_name',         $fields['venue_name']);
+            wizard_set('venue_address',      $fields['venue_address']);
+            wizard_set('venue_city',         $fields['venue_city']);
+            wizard_set('venue_state',        $fields['venue_state']);
+            wizard_set('venue_zip',          $fields['venue_zip']);
+            wizard_set('travel_miles',       $travel_miles);
+            wizard_set('travel_fee',         $travel_fee);
+            wizard_set('call_time_pref',     $fields['call_time_pref']);
             wizard_set('tournament_bracket', $fields['tournament_bracket']);
-            wizard_set('allow_publish',    isset($_POST['allow_publish'])    ? (int)$_POST['allow_publish']    : null);
-            wizard_set('allow_advertise',  isset($_POST['allow_advertise'])  ? (int)$_POST['allow_advertise']  : null);
-            wizard_set('event_notes',      $fields['event_notes']);
+            wizard_set('allow_publish',      isset($_POST['allow_publish'])   ? (int)$_POST['allow_publish']   : null);
+            wizard_set('allow_advertise',    isset($_POST['allow_advertise']) ? (int)$_POST['allow_advertise'] : null);
+            wizard_set('event_notes',        $fields['event_notes']);
 
             header('Location: ' . wizard_step_url(6));
             exit;
@@ -177,11 +174,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Build live summary numbers (no coupon yet — that's step 6)
-$taxable_subtotal  = $attraction_price + $addons_taxable;
-$tax_total         = 0.0;
-$tax_lines         = [];
+$taxable_subtotal = $attraction_price + $addons_taxable;
+$tax_total        = 0.0;
+$tax_lines        = [];
 foreach ($tax_rates as $rate) {
-    $amount = round($taxable_subtotal * (float)$rate['rate'], 2);
+    $amount   = round($taxable_subtotal * (float)$rate['rate'], 2);
     $tax_total += $amount;
     $tax_lines[] = ['label' => $rate['label'], 'rate' => $rate['rate'], 'amount' => $amount];
 }
@@ -206,169 +203,190 @@ render_header('Venue & Contact', 'book');
         </div>
     <?php endif; ?>
 
-
     <form method="post" action="" id="venue-form">
         <div class="booking-layout">
             <div class="booking-layout__main">
 
-                <!-- Contact Info -->
-                <div class="panel mb-3">
-                    <h3 class="panel__title">Contact Information</h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label" for="first_name">First Name <span class="required">*</span></label>
-                            <input type="text" id="first_name" name="first_name" class="form-input"
-                                   value="<?= h($fields['first_name']) ?>" required autocomplete="given-name">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="last_name">Last Name <span class="required">*</span></label>
-                            <input type="text" id="last_name" name="last_name" class="form-input"
-                                   value="<?= h($fields['last_name']) ?>" required autocomplete="family-name">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label" for="email">Email Address <span class="required">*</span></label>
-                            <input type="email" id="email" name="email" class="form-input"
-                                   value="<?= h($fields['email']) ?>" required autocomplete="email">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="phone">Phone Number <span class="required">*</span></label>
-                            <input type="tel" id="phone" name="phone" class="form-input"
-                                   value="<?= h($fields['phone']) ?>" required autocomplete="tel"
-                                   placeholder="(555) 867-5309">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="organization">
-                            Organization / School
-                            <span class="text-dim" style="font-weight:400;">(optional — for nonprofit discount)</span>
-                        </label>
-                        <input type="text" id="organization" name="organization" class="form-input"
-                               value="<?= h($fields['organization']) ?>" autocomplete="organization">
-                    </div>
+                <!-- Tab nav -->
+                <div class="form-tabs" id="form-tabs">
+                    <button type="button" class="form-tab active" data-tab="0">Contact</button>
+                    <button type="button" class="form-tab" data-tab="1">Venue</button>
+                    <button type="button" class="form-tab" data-tab="2">Event Details</button>
                 </div>
 
-                <!-- Venue Info -->
-                <div class="panel mb-3">
-                    <h3 class="panel__title">Event Venue</h3>
-                    <div class="form-group">
-                        <label class="form-label" for="venue_name">Venue Name <span class="required">*</span></label>
-                        <input type="text" id="venue_name" name="venue_name" class="form-input"
-                               value="<?= h($fields['venue_name']) ?>" required
-                               placeholder="e.g. Goodyear Ballpark, Estrella Mountain Park">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="venue_address">Street Address <span class="required">*</span></label>
-                        <input type="text" id="venue_address" name="venue_address" class="form-input"
-                               value="<?= h($fields['venue_address']) ?>" required autocomplete="street-address"
-                               placeholder="123 Main St">
-                    </div>
-                    <div class="form-row form-row--3">
-                        <div class="form-group form-group--grow">
-                            <label class="form-label" for="venue_city">City <span class="required">*</span></label>
-                            <input type="text" id="venue_city" name="venue_city" class="form-input"
-                                   value="<?= h($fields['venue_city']) ?>" required autocomplete="address-level2">
+                <!-- Tab 0: Contact -->
+                <div class="tab-panel active" id="tab-0">
+                    <div class="panel">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="first_name">First Name <span class="required">*</span></label>
+                                <input type="text" id="first_name" name="first_name" class="form-input"
+                                       value="<?= h($fields['first_name']) ?>" autocomplete="given-name">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="last_name">Last Name <span class="required">*</span></label>
+                                <input type="text" id="last_name" name="last_name" class="form-input"
+                                       value="<?= h($fields['last_name']) ?>" autocomplete="family-name">
+                            </div>
                         </div>
-                        <div class="form-group form-group--state">
-                            <label class="form-label" for="venue_state">State <span class="required">*</span></label>
-                            <input type="text" id="venue_state" name="venue_state" class="form-input"
-                                   value="<?= h($fields['venue_state']) ?>" required maxlength="2"
-                                   autocomplete="address-level1" style="text-transform:uppercase;">
-                        </div>
-                        <div class="form-group form-group--zip">
-                            <label class="form-label" for="venue_zip">ZIP</label>
-                            <input type="text" id="venue_zip" name="venue_zip" class="form-input"
-                                   value="<?= h($fields['venue_zip']) ?>" maxlength="10"
-                                   autocomplete="postal-code" inputmode="numeric">
-                        </div>
-                    </div>
-
-                    <p class="text-xs text-dim mt-2">
-                        We serve the greater Phoenix area. Events beyond 50 miles from our Goodyear base
-                        include a travel fee of $<?= number_format($travel_config['rate_per_mile'], 2) ?>/mile
-                        for each mile over <?= (int)$travel_config['free_miles_threshold'] ?>.
-                    </p>
-                </div>
-
-                <!-- Event Details -->
-                <div class="panel mb-3">
-                    <h3 class="panel__title">Event Details</h3>
-
-                    <?php if (in_array($attraction['slug'], ['archery-tag', 'combo'])): ?>
-                    <div class="alert alert-info mb-3" style="font-size:0.875rem;">
-                        <strong>Waiver required:</strong> Each player must sign our standard liability waiver before participating in Archery Tag. We'll send waiver instructions with your confirmation email.
-                    </div>
-                    <?php endif; ?>
-
-                    <div class="form-group">
-                        <label class="form-label">Best time to call you</label>
-                        <div class="radio-pill-group">
-                            <?php foreach (['Morning','Afternoon','Evening','Weekends','Anytime'] as $opt): ?>
-                                <label class="radio-pill">
-                                    <input type="radio" name="call_time_pref" value="<?= $opt ?>"
-                                           <?= $fields['call_time_pref'] === $opt ? 'checked' : '' ?>>
-                                    <?= $opt ?>
-                                </label>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="tournament_bracket">Tournament bracket format</label>
-                        <select id="tournament_bracket" name="tournament_bracket" class="form-input">
-                            <?php foreach (['No','Single Elimination','Double Elimination','Round Robin','Other'] as $opt): ?>
-                                <option value="<?= $opt ?>" <?= $fields['tournament_bracket'] === $opt ? 'selected' : '' ?>>
-                                    <?= $opt === 'No' ? 'No tournament bracket' : $opt ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">May we publish this event on our upcoming events page?</label>
-                            <div class="radio-pill-group">
-                                <label class="radio-pill">
-                                    <input type="radio" name="allow_publish" value="1"
-                                           <?= $fields['allow_publish'] === '1' || $fields['allow_publish'] === 1 ? 'checked' : '' ?>>
-                                    Yes
-                                </label>
-                                <label class="radio-pill">
-                                    <input type="radio" name="allow_publish" value="0"
-                                           <?= $fields['allow_publish'] === '0' || $fields['allow_publish'] === 0 ? 'checked' : '' ?>>
-                                    No
-                                </label>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="email">Email Address <span class="required">*</span></label>
+                                <input type="email" id="email" name="email" class="form-input"
+                                       value="<?= h($fields['email']) ?>" autocomplete="email">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="phone">Phone Number <span class="required">*</span></label>
+                                <input type="tel" id="phone" name="phone" class="form-input"
+                                       value="<?= h($fields['phone']) ?>" autocomplete="tel"
+                                       placeholder="(555) 867-5309">
                             </div>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">May we advertise our services at your event? <span class="text-dim" style="font-weight:400;">(flyers / video)</span></label>
-                            <div class="radio-pill-group">
-                                <label class="radio-pill">
-                                    <input type="radio" name="allow_advertise" value="1"
-                                           <?= $fields['allow_advertise'] === '1' || $fields['allow_advertise'] === 1 ? 'checked' : '' ?>>
-                                    Yes
-                                </label>
-                                <label class="radio-pill">
-                                    <input type="radio" name="allow_advertise" value="0"
-                                           <?= $fields['allow_advertise'] === '0' || $fields['allow_advertise'] === 0 ? 'checked' : '' ?>>
-                                    No
-                                </label>
-                            </div>
+                            <label class="form-label" for="organization">
+                                Organization / School
+                                <span class="text-dim" style="font-weight:400;">(optional — for nonprofit discount)</span>
+                            </label>
+                            <input type="text" id="organization" name="organization" class="form-input"
+                                   value="<?= h($fields['organization']) ?>" autocomplete="organization">
                         </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="event_notes">Anything else we should know?</label>
-                        <textarea id="event_notes" name="event_notes" class="form-input"
-                                  rows="3" placeholder="Special requests, accessibility needs, parking info…"><?= h($fields['event_notes']) ?></textarea>
+                        <div class="tab-nav">
+                            <span></span>
+                            <button type="button" class="btn btn-primary tab-next" data-next="1">Venue &rarr;</button>
+                        </div>
                     </div>
                 </div>
 
-                <div class="wizard-nav desktop-nav">
+                <!-- Tab 1: Venue -->
+                <div class="tab-panel" id="tab-1">
+                    <div class="panel">
+                        <div class="form-group">
+                            <label class="form-label" for="venue_name">Venue Name <span class="required">*</span></label>
+                            <input type="text" id="venue_name" name="venue_name" class="form-input"
+                                   value="<?= h($fields['venue_name']) ?>"
+                                   placeholder="e.g. Goodyear Ballpark, Estrella Mountain Park">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="venue_address">Street Address <span class="required">*</span></label>
+                            <input type="text" id="venue_address" name="venue_address" class="form-input"
+                                   value="<?= h($fields['venue_address']) ?>" autocomplete="street-address"
+                                   placeholder="123 Main St">
+                        </div>
+                        <div class="form-row form-row--3">
+                            <div class="form-group">
+                                <label class="form-label" for="venue_city">City <span class="required">*</span></label>
+                                <input type="text" id="venue_city" name="venue_city" class="form-input"
+                                       value="<?= h($fields['venue_city']) ?>" autocomplete="address-level2">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="venue_state">State <span class="required">*</span></label>
+                                <input type="text" id="venue_state" name="venue_state" class="form-input"
+                                       value="<?= h($fields['venue_state']) ?>" maxlength="2"
+                                       autocomplete="address-level1" style="text-transform:uppercase;">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="venue_zip">ZIP</label>
+                                <input type="text" id="venue_zip" name="venue_zip" class="form-input"
+                                       value="<?= h($fields['venue_zip']) ?>" maxlength="10"
+                                       autocomplete="postal-code" inputmode="numeric">
+                            </div>
+                        </div>
+                        <p class="text-xs text-dim mt-1 mb-3">
+                            Events beyond <?= (int)$travel_config['free_miles_threshold'] ?> miles from our Goodyear base
+                            include a travel fee of $<?= number_format($travel_config['rate_per_mile'], 2) ?>/mile over that threshold.
+                        </p>
+                        <div class="tab-nav">
+                            <button type="button" class="btn btn-ghost tab-prev" data-prev="0">&larr; Contact</button>
+                            <button type="button" class="btn btn-primary tab-next" data-next="2">Event Details &rarr;</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Event Details -->
+                <div class="tab-panel" id="tab-2">
+                    <div class="panel">
+                        <?php if (in_array($attraction['slug'], ['archery-tag', 'combo'])): ?>
+                        <div class="alert alert-info mb-3" style="font-size:0.875rem;">
+                            <strong>Waiver required:</strong> Each player must sign our standard liability waiver before participating in Archery Tag. We'll send waiver instructions with your confirmation email.
+                        </div>
+                        <?php endif; ?>
+
+                        <div class="form-group">
+                            <label class="form-label">Best time to call you</label>
+                            <div class="radio-pill-group">
+                                <?php foreach (['Morning','Afternoon','Evening','Weekends','Anytime'] as $opt): ?>
+                                    <label class="radio-pill">
+                                        <input type="radio" name="call_time_pref" value="<?= $opt ?>"
+                                               <?= $fields['call_time_pref'] === $opt ? 'checked' : '' ?>>
+                                        <?= $opt ?>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="tournament_bracket">Tournament bracket format</label>
+                            <select id="tournament_bracket" name="tournament_bracket" class="form-input">
+                                <?php foreach (['No','Single Elimination','Double Elimination','Round Robin','Other'] as $opt): ?>
+                                    <option value="<?= $opt ?>" <?= $fields['tournament_bracket'] === $opt ? 'selected' : '' ?>>
+                                        <?= $opt === 'No' ? 'No tournament bracket' : $opt ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Publish on our events page?</label>
+                                <div class="radio-pill-group">
+                                    <label class="radio-pill">
+                                        <input type="radio" name="allow_publish" value="1"
+                                               <?= $fields['allow_publish'] === '1' || $fields['allow_publish'] === 1 ? 'checked' : '' ?>>
+                                        Yes
+                                    </label>
+                                    <label class="radio-pill">
+                                        <input type="radio" name="allow_publish" value="0"
+                                               <?= $fields['allow_publish'] === '0' || $fields['allow_publish'] === 0 ? 'checked' : '' ?>>
+                                        No
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Advertise our services at your event? <span class="text-dim" style="font-weight:400;">(flyers / video)</span></label>
+                                <div class="radio-pill-group">
+                                    <label class="radio-pill">
+                                        <input type="radio" name="allow_advertise" value="1"
+                                               <?= $fields['allow_advertise'] === '1' || $fields['allow_advertise'] === 1 ? 'checked' : '' ?>>
+                                        Yes
+                                    </label>
+                                    <label class="radio-pill">
+                                        <input type="radio" name="allow_advertise" value="0"
+                                               <?= $fields['allow_advertise'] === '0' || $fields['allow_advertise'] === 0 ? 'checked' : '' ?>>
+                                        No
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="event_notes">Anything else we should know?</label>
+                            <textarea id="event_notes" name="event_notes" class="form-input"
+                                      rows="3" placeholder="Special requests, accessibility needs, parking info…"><?= h($fields['event_notes']) ?></textarea>
+                        </div>
+
+                        <div class="tab-nav">
+                            <button type="button" class="btn btn-ghost tab-prev" data-prev="1">&larr; Venue</button>
+                            <button type="submit" class="btn btn-primary btn-lg">Continue &rarr;</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Desktop back (outside tabs, matches other steps) -->
+                <div class="wizard-nav desktop-nav" style="margin-top:0.5rem;">
                     <a href="<?= wizard_step_url(4) ?>" class="btn btn-ghost">&larr; Back</a>
-                    <button type="submit" class="btn btn-primary btn-lg">Continue &rarr;</button>
+                    <span class="text-xs text-dim">Use the tabs above to navigate sections</span>
                 </div>
+
             </div>
 
             <!-- Price Summary Sidebar -->
@@ -419,7 +437,7 @@ render_header('Venue & Contact', 'book');
 
                     <div class="price-total">
                         <span>Estimated Total</span>
-                        <span id="price-total">$<?= number_format($grand_total, 2) ?></span>
+                        <span>$<?= number_format($grand_total, 2) ?></span>
                     </div>
 
                     <p class="text-xs mt-2" style="color:var(--text-dim); line-height:1.5;">
@@ -441,7 +459,7 @@ render_header('Venue & Contact', 'book');
     <div class="mobile-continue-bar__inner">
         <a href="<?= wizard_step_url(4) ?>" class="btn btn-ghost btn-sm">&larr;</a>
         <span class="mobile-continue-bar__label" style="font-size:0.9rem;">
-            Total: <span id="mobile-total">$<?= number_format($grand_total, 2) ?></span>
+            Total: <span>$<?= number_format($grand_total, 2) ?></span>
         </span>
         <button type="submit" form="venue-form" class="btn btn-primary">Continue &rarr;</button>
     </div>
@@ -450,33 +468,60 @@ render_header('Venue & Contact', 'book');
 <?php render_footer(); ?>
 
 <script>
-// Force state abbreviation uppercase
-document.getElementById('venue_state').addEventListener('input', function () {
-    this.value = this.value.toUpperCase();
-});
+(function () {
+    // ---- Tab switching ----
+    const initialTab = <?= (int)$error_tab ?>;
 
-// Radio pill active state (JS fallback for browsers without :has() support)
-document.querySelectorAll('.radio-pill input[type="radio"]').forEach(function (radio) {
-    // Apply on load for pre-selected values
-    if (radio.checked) radio.closest('.radio-pill').classList.add('checked');
-    radio.addEventListener('change', function () {
-        // Clear siblings in the same group
-        document.querySelectorAll('input[name="' + radio.name + '"]').forEach(function (r) {
-            r.closest('.radio-pill').classList.remove('checked');
+    function switchTab(index) {
+        document.querySelectorAll('.form-tab').forEach(function (btn) {
+            btn.classList.toggle('active', parseInt(btn.dataset.tab) === index);
         });
-        radio.closest('.radio-pill').classList.add('checked');
-    });
-});
-
-// Phone formatting helper (US)
-document.getElementById('phone').addEventListener('input', function () {
-    let digits = this.value.replace(/\D/g, '').substring(0, 10);
-    if (digits.length >= 7) {
-        this.value = '(' + digits.substring(0,3) + ') ' + digits.substring(3,6) + '-' + digits.substring(6);
-    } else if (digits.length >= 4) {
-        this.value = '(' + digits.substring(0,3) + ') ' + digits.substring(3);
-    } else if (digits.length > 0) {
-        this.value = '(' + digits;
+        document.querySelectorAll('.tab-panel').forEach(function (panel) {
+            panel.classList.toggle('active', panel.id === 'tab-' + index);
+        });
     }
-});
+
+    document.querySelectorAll('.form-tab').forEach(function (btn) {
+        btn.addEventListener('click', function () { switchTab(parseInt(btn.dataset.tab)); });
+    });
+
+    document.querySelectorAll('.tab-next').forEach(function (btn) {
+        btn.addEventListener('click', function () { switchTab(parseInt(btn.dataset.next)); });
+    });
+
+    document.querySelectorAll('.tab-prev').forEach(function (btn) {
+        btn.addEventListener('click', function () { switchTab(parseInt(btn.dataset.prev)); });
+    });
+
+    // Open the correct tab on load (error recovery or default)
+    switchTab(initialTab);
+
+    // ---- State uppercase ----
+    document.getElementById('venue_state').addEventListener('input', function () {
+        this.value = this.value.toUpperCase();
+    });
+
+    // ---- Phone formatting ----
+    document.getElementById('phone').addEventListener('input', function () {
+        let digits = this.value.replace(/\D/g, '').substring(0, 10);
+        if (digits.length >= 7) {
+            this.value = '(' + digits.substring(0,3) + ') ' + digits.substring(3,6) + '-' + digits.substring(6);
+        } else if (digits.length >= 4) {
+            this.value = '(' + digits.substring(0,3) + ') ' + digits.substring(3);
+        } else if (digits.length > 0) {
+            this.value = '(' + digits;
+        }
+    });
+
+    // ---- Radio pill active state (fallback for browsers without :has()) ----
+    document.querySelectorAll('.radio-pill input[type="radio"]').forEach(function (radio) {
+        if (radio.checked) radio.closest('.radio-pill').classList.add('checked');
+        radio.addEventListener('change', function () {
+            document.querySelectorAll('input[name="' + radio.name + '"]').forEach(function (r) {
+                r.closest('.radio-pill').classList.remove('checked');
+            });
+            radio.closest('.radio-pill').classList.add('checked');
+        });
+    });
+})();
 </script>
