@@ -147,13 +147,30 @@ render_header('Choose Date & Time', 'book');
             — we may be able to accommodate special requests.
         </p>
 
-        <div class="wizard-nav">
+        <div class="wizard-nav desktop-nav">
             <a href="<?= wizard_step_url(2) ?>" class="btn btn-ghost">&larr; Back</a>
             <button type="submit" class="btn btn-primary btn-lg" id="continue-btn" disabled>
                 Continue &rarr;
             </button>
         </div>
     </form>
+</div>
+
+<div id="mobile-continue-bar" class="mobile-continue-bar<?= ($saved_date && $saved_time) ? ' visible' : '' ?>">
+    <div class="mobile-continue-bar__inner">
+        <a href="<?= wizard_step_url(2) ?>" class="btn btn-ghost btn-sm">&larr;</a>
+        <span id="mobile-datetime-label" class="mobile-continue-bar__label" style="font-size:0.8rem; text-align:center;">
+            <?php if ($saved_date && $saved_time): ?>
+                <?= date('M j', strtotime($saved_date)) ?> at <?= date('g:i A', strtotime('2000-01-01 ' . $saved_time)) ?>
+            <?php else: ?>
+                Select a date &amp; time
+            <?php endif; ?>
+        </span>
+        <button type="submit" form="datetime-form" class="btn btn-primary" id="mobile-continue-btn"
+                <?= ($saved_date && $saved_time) ? '' : 'disabled' ?>>
+            Continue &rarr;
+        </button>
+    </div>
 </div>
 
 <?php render_footer(); ?>
@@ -193,9 +210,12 @@ render_header('Choose Date & Time', 'book');
     const slotsNone  = document.getElementById('slots-none');
     const dateInput  = document.getElementById('event-date-input');
     const timeInput  = document.getElementById('start-time-input');
-    const continueBtn= document.getElementById('continue-btn');
-    const dateDisplay= document.getElementById('selected-date-display');
-    const dateText   = document.getElementById('selected-date-text');
+    const continueBtn       = document.getElementById('continue-btn');
+    const dateDisplay       = document.getElementById('selected-date-display');
+    const dateText          = document.getElementById('selected-date-text');
+    const mobileBar         = document.getElementById('mobile-continue-bar');
+    const mobileDateLabel   = document.getElementById('mobile-datetime-label');
+    const mobileContinueBtn = document.getElementById('mobile-continue-btn');
 
     function isoDate(y, m, d) {
         return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
@@ -288,6 +308,9 @@ render_header('Choose Date & Time', 'book');
         dateInput.value = date;
         timeInput.value = '';
         continueBtn.disabled = true;
+        if (mobileContinueBtn) mobileContinueBtn.disabled = true;
+        if (mobileBar) mobileBar.classList.add('visible');
+        if (mobileDateLabel) mobileDateLabel.textContent = d.toLocaleDateString('en-US', {month:'short', day:'numeric'}) + ' — pick a time';
 
         // Update display
         const parts = date.split('-');
@@ -352,6 +375,16 @@ render_header('Choose Date & Time', 'book');
         document.querySelectorAll('.time-slot').forEach(b => {
             b.classList.toggle('selected', b.dataset.value === value);
         });
+
+        // Update mobile sticky bar
+        if (mobileContinueBtn) mobileContinueBtn.disabled = false;
+        if (mobileDateLabel && selectedDate) {
+            const parts = selectedDate.split('-');
+            const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+            const timeLabel = new Date('2000-01-01T' + value + ':00')
+                .toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
+            mobileDateLabel.textContent = d.toLocaleDateString('en-US', {month:'short', day:'numeric'}) + ' at ' + timeLabel;
+        }
     }
 
     // ---- Month navigation -------------------------------------------

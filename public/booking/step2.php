@@ -65,7 +65,7 @@ render_header('Choose Duration', 'book');
         <div class="alert alert-danger"><?= h($error) ?></div>
     <?php endif; ?>
 
-    <form method="post" action="">
+    <form method="post" action="" id="duration-form">
         <input type="hidden" name="hours" id="hours-input" value="<?= h($current_hours) ?>">
 
         <div class="panel">
@@ -137,11 +137,23 @@ render_header('Choose Duration', 'book');
             </p>
         </div>
 
-        <div class="wizard-nav">
+        <div class="wizard-nav desktop-nav">
             <a href="<?= wizard_step_url(1) ?>" class="btn btn-ghost">&larr; Back</a>
             <button type="submit" class="btn btn-primary btn-lg">Continue &rarr;</button>
         </div>
     </form>
+</div>
+
+<div id="mobile-continue-bar" class="mobile-continue-bar visible">
+    <div class="mobile-continue-bar__inner">
+        <span id="mobile-continue-label" class="mobile-continue-bar__label">
+            <a href="<?= wizard_step_url(1) ?>" class="btn btn-ghost btn-sm">&larr;</a>
+        </span>
+        <span id="mobile-price-display" class="mobile-continue-bar__label text-right" style="font-size:0.9rem;">
+            $<?= number_format($sample_price + $sample_tax, 2) ?>
+        </span>
+        <button type="submit" form="duration-form" class="btn btn-primary">Continue &rarr;</button>
+    </div>
 </div>
 
 <?php render_footer(); ?>
@@ -163,11 +175,12 @@ render_header('Choose Duration', 'book');
     const display      = document.getElementById('duration-display');
     const btnMinus     = document.getElementById('btn-minus');
     const btnPlus      = document.getElementById('btn-plus');
-    const priceLabel   = document.getElementById('price-label');
-    const priceAttr    = document.getElementById('price-attraction');
-    const priceTax     = document.getElementById('price-tax');
-    const priceTotal   = document.getElementById('price-total');
-    const slots        = document.querySelectorAll('.time-slot');
+    const priceLabel      = document.getElementById('price-label');
+    const priceAttr       = document.getElementById('price-attraction');
+    const priceTax        = document.getElementById('price-tax');
+    const priceTotal      = document.getElementById('price-total');
+    const mobilePriceDisp = document.getElementById('mobile-price-display');
+    const slots           = document.querySelectorAll('.time-slot');
 
     function calcPrice(h) {
         const extra = Math.max(0, h - baseHours);
@@ -193,6 +206,7 @@ render_header('Choose Duration', 'book');
 
         btnMinus.disabled = hours <= minHours;
         btnPlus.disabled  = hours >= maxHours;
+        if (mobilePriceDisp) mobilePriceDisp.textContent = fmt(price + tax);
 
         slots.forEach(s => {
             const v = parseFloat(s.dataset.hours);
