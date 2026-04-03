@@ -391,8 +391,12 @@ render_header('Venue & Contact', 'book');
 
             <!-- Price Summary Sidebar -->
             <aside class="booking-layout__aside">
-                <div class="price-summary">
-                    <div class="price-summary__title">Your Booking</div>
+                <div class="price-summary collapsed" id="price-summary">
+                    <div class="price-summary__title price-summary__toggle" id="price-summary-toggle">
+                        <span>Your Booking</span>
+                        <span class="toggle-icon">&#9660;</span>
+                    </div>
+                    <div class="price-summary__body">
 
                     <div class="price-line">
                         <span class="price-line__label"><?= h($attraction['name']) ?></span>
@@ -448,6 +452,8 @@ render_header('Venue & Contact', 'book');
                     <div class="price-deposit-note">
                         Deposit due today: <strong>$<?= number_format((float)$attraction['deposit_amount'], 2) ?></strong>
                     </div>
+
+                    </div><!-- /.price-summary__body -->
                 </div>
             </aside>
         </div>
@@ -512,6 +518,14 @@ render_header('Venue & Contact', 'book');
             this.value = '(' + digits;
         }
     });
+
+    // ---- Collapsible price summary (mobile) ----
+    const toggle = document.getElementById('price-summary-toggle');
+    if (toggle) {
+        toggle.addEventListener('click', function () {
+            document.getElementById('price-summary').classList.toggle('collapsed');
+        });
+    }
 
     // ---- Radio pill active state (fallback for browsers without :has()) ----
     document.querySelectorAll('.radio-pill input[type="radio"]').forEach(function (radio) {

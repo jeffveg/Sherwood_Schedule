@@ -846,6 +846,20 @@ select {
     border-bottom: 1px solid rgba(254,214,17,0.2);
 }
 
+/* Body wrapper — always visible on desktop, collapsible on mobile */
+.price-summary__body {
+    display: block;
+}
+
+/* Toggle arrow hidden on desktop */
+.price-summary__toggle {
+    cursor: default;
+}
+
+.price-summary .toggle-icon {
+    display: none;
+}
+
 .price-line {
     display: flex;
     justify-content: space-between;
@@ -1299,7 +1313,50 @@ select {
     }
 
     .booking-layout__aside {
-        order: -1;
+        order: 1; /* move below main content on mobile */
+    }
+
+    /* Show toggle icon and enable click on mobile */
+    .price-summary .toggle-icon { display: inline; }
+
+    .price-summary__toggle {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        user-select: none;
+        padding-bottom: 0;
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+
+    .price-summary__toggle .toggle-icon {
+        font-size: 0.75rem;
+        color: var(--text-dim);
+        transition: transform var(--transition);
+    }
+
+    /* Body collapses on mobile */
+    .price-summary__body {
+        overflow: hidden;
+        transition: max-height 0.3s ease, opacity 0.3s ease;
+        max-height: 800px;
+        opacity: 1;
+        margin-top: 1rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid rgba(254,214,17,0.2);
+    }
+
+    .price-summary.collapsed .price-summary__body {
+        max-height: 0;
+        opacity: 0;
+        margin-top: 0;
+        padding-top: 0;
+        border-top: none;
+    }
+
+    .price-summary.collapsed .toggle-icon {
+        transform: rotate(-90deg);
     }
 
     .admin-layout {
