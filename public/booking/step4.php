@@ -215,6 +215,11 @@ render_header('Add-ons', 'book');
                         <span id="price-total">—</span>
                     </div>
 
+                    <p class="text-xs mt-2" style="color:var(--text-dim); line-height:1.5;">
+                        Tax applies to the attraction fee and any taxable add-ons (e.g. t-shirts).
+                        Lighting, video, and travel fees are non-taxable.
+                    </p>
+
                     <div class="price-deposit-note">
                         Deposit due today: <strong>$<?= number_format((float)$attraction['deposit_amount'], 2) ?></strong>
                     </div>
