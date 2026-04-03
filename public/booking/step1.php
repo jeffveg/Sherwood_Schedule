@@ -87,7 +87,7 @@ render_header('Choose Your Activity', 'book');
         <div class="alert alert-danger mb-3"><?= h($error) ?></div>
     <?php endif; ?>
 
-    <form method="post" action="">
+    <form method="post" action="" id="attraction-form">
         <div class="card-grid mb-4">
             <?php foreach ($attractions as $a): ?>
                 <?php
@@ -126,7 +126,8 @@ render_header('Choose Your Activity', 'book');
             <?php endforeach; ?>
         </div>
 
-        <div class="wizard-nav">
+        <!-- Desktop nav (hidden on mobile) -->
+        <div class="wizard-nav desktop-nav">
             <span></span>
             <button type="submit" class="btn btn-primary btn-lg">
                 Continue &rarr;
@@ -135,14 +136,37 @@ render_header('Choose Your Activity', 'book');
     </form>
 </div>
 
+<!-- Mobile sticky Continue bar — appears after selection -->
+<div id="mobile-continue-bar" class="mobile-continue-bar<?= $selected_id ? ' visible' : '' ?>">
+    <div class="mobile-continue-bar__inner">
+        <span id="mobile-continue-label" class="mobile-continue-bar__label">
+            <?php if ($selected_id):
+                foreach ($attractions as $a) {
+                    if ($a['id'] == $selected_id) { echo h($a['name']); break; }
+                }
+            endif; ?>
+        </span>
+        <button type="submit" form="attraction-form" class="btn btn-primary">
+            Continue &rarr;
+        </button>
+    </div>
+</div>
+
 <?php render_footer(); ?>
 
 <script>
-// Visual card selection on click
-document.querySelectorAll('.card').forEach(card => {
+const cards   = document.querySelectorAll('.card');
+const bar     = document.getElementById('mobile-continue-bar');
+const barLabel= document.getElementById('mobile-continue-label');
+
+cards.forEach(card => {
     card.addEventListener('click', () => {
-        document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+        cards.forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
+        // Show sticky bar with selected attraction name
+        const title = card.querySelector('.card__title');
+        if (title) barLabel.textContent = title.textContent;
+        bar.classList.add('visible');
     });
 });
 </script>
