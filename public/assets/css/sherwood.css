@@ -1301,7 +1301,11 @@ body:has(.mobile-continue-bar) {
 }
 
 @media (min-width: 901px) {
-    /* Aside hidden on desktop — modal replaces it */
+    /* Collapse layout to single column — aside hidden, main fills full width */
+    .booking-layout {
+        grid-template-columns: 1fr;
+    }
+
     .booking-layout__aside { display: none; }
 
     .price-float-btn {
@@ -1309,7 +1313,7 @@ body:has(.mobile-continue-bar) {
         align-items: center;
         gap: 0.5rem;
         position: fixed;
-        bottom: 4.5rem; /* above sticky nav */
+        top: 1.25rem;
         right: 1.5rem;
         background: var(--charcoal-lt);
         border: 1px solid rgba(254,214,17,0.4);
@@ -1333,6 +1337,13 @@ body:has(.mobile-continue-bar) {
     .price-float-btn__icon {
         font-size: 0.75rem;
         opacity: 0.7;
+    }
+
+    /* Modal anchors to top-right to match button position */
+    .price-modal {
+        align-items: flex-start;
+        justify-content: flex-end;
+        padding: 4rem 1.5rem 0 0;
     }
 }
 

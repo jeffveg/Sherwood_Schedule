@@ -234,7 +234,7 @@ render_header('Add-ons', 'book');
 <!-- Desktop: floating price button -->
 <button class="price-float-btn" id="price-float-btn" type="button">
     Your Booking &mdash; <span id="float-total">—</span>
-    <span class="price-float-btn__icon">&#9650;</span>
+    <span class="price-float-btn__icon">&#9660;</span>
 </button>
 
 <!-- Price modal (desktop) -->
