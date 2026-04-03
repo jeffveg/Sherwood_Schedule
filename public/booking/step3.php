@@ -204,7 +204,7 @@ render_header('Choose Date & Time', 'book');
     const slotsNone  = document.getElementById('slots-none');
     const dateInput  = document.getElementById('event-date-input');
     const timeInput  = document.getElementById('start-time-input');
-    const continueBtn       = document.getElementById('continue-btn');
+    const continueBtn       = document.getElementById('mobile-continue-btn');
     const dateDisplay       = document.getElementById('selected-date-display');
     const dateText          = document.getElementById('selected-date-text');
     const mobileBar         = document.getElementById('mobile-continue-bar');
