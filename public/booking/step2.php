@@ -137,10 +137,6 @@ render_header('Choose Duration', 'book');
             </p>
         </div>
 
-        <div class="wizard-nav desktop-nav">
-            <a href="<?= wizard_step_url(1) ?>" class="btn btn-ghost">&larr; Back</a>
-            <button type="submit" class="btn btn-primary btn-lg">Continue &rarr;</button>
-        </div>
     </form>
 </div>
 

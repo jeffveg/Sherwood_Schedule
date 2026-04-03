@@ -126,13 +126,6 @@ render_header('Choose Your Activity', 'book');
             <?php endforeach; ?>
         </div>
 
-        <!-- Desktop nav (hidden on mobile) -->
-        <div class="wizard-nav desktop-nav">
-            <span></span>
-            <button type="submit" class="btn btn-primary btn-lg">
-                Continue &rarr;
-            </button>
-        </div>
     </form>
 </div>
 

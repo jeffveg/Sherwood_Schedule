@@ -147,12 +147,6 @@ render_header('Choose Date & Time', 'book');
             — we may be able to accommodate special requests.
         </p>
 
-        <div class="wizard-nav desktop-nav">
-            <a href="<?= wizard_step_url(2) ?>" class="btn btn-ghost">&larr; Back</a>
-            <button type="submit" class="btn btn-primary btn-lg" id="continue-btn" disabled>
-                Continue &rarr;
-            </button>
-        </div>
     </form>
 </div>
 

@@ -1185,53 +1185,154 @@ select {
     margin-bottom: 1.5rem;
 }
 
-/* ---- Mobile Sticky Continue Bar -------------------------- */
+/* ---- Sticky Continue Bar (all screen sizes) --------------- */
 .mobile-continue-bar {
-    display: none; /* JS + .visible shows it */
+    position: fixed;
+    bottom: -100px; /* off-screen until .visible */
+    left: 0;
+    right: 0;
+    background-color: var(--forest);
+    border-top: 2px solid var(--gold);
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+    z-index: 200;
+    transition: bottom 0.3s ease;
+    padding: 0.75rem 1.5rem;
 }
 
-.desktop-nav {
+.mobile-continue-bar.visible {
+    bottom: 0;
+}
+
+.mobile-continue-bar__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.mobile-continue-bar__label {
+    font-family: var(--font-heading);
+    color: var(--gold);
+    font-size: 1.1rem;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Prevent content hiding behind the sticky bar */
+body:has(.mobile-continue-bar) {
+    padding-bottom: 5rem;
+}
+
+/* In-form nav replaced by sticky bar on all screen sizes */
+.desktop-nav { display: none; }
+
+/* ---- Price Float Button + Modal (desktop) ----------------- */
+.price-float-btn {
+    display: none; /* shown at ≥901px via media query */
+}
+
+.price-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    align-items: flex-end;
+    justify-content: flex-end;
+    padding: 0 1.5rem 5rem 0; /* sit above sticky bar, right-aligned */
+}
+
+.price-modal.open {
     display: flex;
 }
 
-@media (max-width: 600px) {
-    .desktop-nav { display: none; }
+.price-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+}
 
-    .mobile-continue-bar {
-        display: block;
-        position: fixed;
-        bottom: -80px;  /* hidden off screen */
-        left: 0;
-        right: 0;
-        background-color: var(--forest);
-        border-top: 2px solid var(--gold);
-        box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
-        z-index: 200;
-        transition: bottom 0.3s ease;
-        padding: 0.75rem 1rem;
-    }
+.price-modal__panel {
+    position: relative;
+    z-index: 1;
+    width: 360px;
+    max-height: 80vh;
+    overflow-y: auto;
+    border-radius: var(--radius-lg);
+    animation: pricePanelIn 0.2s ease;
+}
 
-    .mobile-continue-bar.visible {
-        bottom: 0;
-    }
+/* Reuse .price-summary styles inside modal — remove sticky top */
+.price-modal__panel .price-summary {
+    position: static;
+    border-radius: var(--radius-lg);
+}
 
-    .mobile-continue-bar__inner {
+/* Hide the collapse toggle inside the modal */
+.price-modal__panel .toggle-icon { display: none !important; }
+.price-modal__panel .price-summary__body {
+    max-height: none !important;
+    opacity: 1 !important;
+    display: block !important;
+}
+
+.price-modal__close {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.75rem;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0.2rem 0.4rem;
+    z-index: 2;
+}
+
+.price-modal__close:hover { color: var(--text); }
+
+@keyframes pricePanelIn {
+    from { transform: translateY(10px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+
+@media (min-width: 901px) {
+    /* Aside hidden on desktop — modal replaces it */
+    .booking-layout__aside { display: none; }
+
+    .price-float-btn {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        max-width: 600px;
-        margin: 0 auto;
+        gap: 0.5rem;
+        position: fixed;
+        bottom: 4.5rem; /* above sticky nav */
+        right: 1.5rem;
+        background: var(--charcoal-lt);
+        border: 1px solid rgba(254,214,17,0.4);
+        border-radius: 999px;
+        padding: 0.55rem 1.2rem;
+        color: var(--gold);
+        font-family: var(--font-body);
+        font-size: 0.875rem;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: var(--shadow);
+        z-index: 190;
+        transition: border-color var(--transition), box-shadow var(--transition);
     }
 
-    .mobile-continue-bar__label {
-        font-family: var(--font-heading);
-        color: var(--gold);
-        font-size: 1.1rem;
-        flex: 1;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+    .price-float-btn:hover {
+        border-color: var(--gold);
+        box-shadow: var(--glow-gold);
+    }
+
+    .price-float-btn__icon {
+        font-size: 0.75rem;
+        opacity: 0.7;
     }
 }
 

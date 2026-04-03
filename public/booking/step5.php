@@ -381,11 +381,6 @@ render_header('Venue & Contact', 'book');
                     </div>
                 </div>
 
-                <!-- Desktop back (outside tabs, matches other steps) -->
-                <div class="wizard-nav desktop-nav" style="margin-top:0.5rem;">
-                    <a href="<?= wizard_step_url(4) ?>" class="btn btn-ghost">&larr; Back</a>
-                    <span class="text-xs text-dim">Use the tabs above to navigate sections</span>
-                </div>
 
             </div>
 
@@ -460,7 +455,21 @@ render_header('Venue & Contact', 'book');
     </form>
 </div>
 
-<!-- Mobile sticky bar -->
+<!-- Desktop: floating price button -->
+<button class="price-float-btn" id="price-float-btn" type="button">
+    Your Booking &mdash; $<?= number_format($grand_total, 2) ?>
+    <span class="price-float-btn__icon">&#9650;</span>
+</button>
+
+<!-- Price modal (desktop) -->
+<div class="price-modal" id="price-modal">
+    <div class="price-modal__backdrop" id="price-modal-backdrop"></div>
+    <div class="price-modal__panel" id="price-modal-panel">
+        <button class="price-modal__close" id="price-modal-close" type="button">&times;</button>
+    </div>
+</div>
+
+<!-- Sticky nav bar -->
 <div class="mobile-continue-bar visible" id="mobile-continue-bar">
     <div class="mobile-continue-bar__inner">
         <a href="<?= wizard_step_url(4) ?>" class="btn btn-ghost btn-sm">&larr;</a>
@@ -520,12 +529,37 @@ render_header('Venue & Contact', 'book');
     });
 
     // ---- Collapsible price summary (mobile) ----
-    const toggle = document.getElementById('price-summary-toggle');
-    if (toggle) {
-        toggle.addEventListener('click', function () {
+    const collapseToggle = document.getElementById('price-summary-toggle');
+    if (collapseToggle) {
+        collapseToggle.addEventListener('click', function () {
             document.getElementById('price-summary').classList.toggle('collapsed');
         });
     }
+
+    // ---- Float button → modal (desktop) ----
+    const floatBtn   = document.getElementById('price-float-btn');
+    const modal      = document.getElementById('price-modal');
+    const modalPanel = document.getElementById('price-modal-panel');
+    const aside      = document.querySelector('.booking-layout__aside');
+    const summary    = document.getElementById('price-summary');
+
+    function openPriceModal() {
+        summary.classList.remove('collapsed');
+        modalPanel.appendChild(summary);
+        modal.classList.add('open');
+    }
+
+    function closePriceModal() {
+        aside.appendChild(summary);
+        modal.classList.remove('open');
+    }
+
+    if (floatBtn) floatBtn.addEventListener('click', openPriceModal);
+    document.getElementById('price-modal-backdrop').addEventListener('click', closePriceModal);
+    document.getElementById('price-modal-close').addEventListener('click', closePriceModal);
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closePriceModal();
+    });
 
     // ---- Radio pill active state (fallback for browsers without :has()) ----
     document.querySelectorAll('.radio-pill input[type="radio"]').forEach(function (radio) {
