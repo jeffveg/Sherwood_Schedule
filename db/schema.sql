@@ -325,9 +325,8 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 -- Tax rates (8.8% total — Goodyear, AZ as of Jan 2026)
 INSERT INTO tax_config (label, rate, sort_order) VALUES
-    ('Arizona State',    0.0560, 1),
-    ('Maricopa County',  0.0070, 2),
-    ('City of Goodyear', 0.0250, 3);
+    ('State & County Tax', 0.0630, 1),
+    ('City of Goodyear',   0.0250, 2);
 
 -- Travel fee base (update lat/lng and address to your actual Goodyear address)
 INSERT INTO travel_fee_config (id, base_address, base_lat, base_lng, free_miles_threshold, rate_per_mile)
