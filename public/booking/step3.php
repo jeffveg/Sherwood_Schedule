@@ -309,14 +309,18 @@ render_header('Choose Date & Time', 'book');
         timeInput.value = '';
         continueBtn.disabled = true;
         if (mobileContinueBtn) mobileContinueBtn.disabled = true;
-        if (mobileBar) mobileBar.classList.add('visible');
-        if (mobileDateLabel) mobileDateLabel.textContent = d.toLocaleDateString('en-US', {month:'short', day:'numeric'}) + ' — pick a time';
 
-        // Update display
+        // Build date object first — used for both labels
         const parts = date.split('-');
         const d     = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+
+        // Update full date display (desktop)
         dateText.textContent = d.toLocaleDateString('en-US', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
         dateDisplay.style.display = 'block';
+
+        // Update mobile sticky bar
+        if (mobileBar) mobileBar.classList.add('visible');
+        if (mobileDateLabel) mobileDateLabel.textContent = d.toLocaleDateString('en-US', {month:'short', day:'numeric'}) + ' — pick a time';
 
         renderCalendar(); // re-render to show selection
         fetchSlots(date);
