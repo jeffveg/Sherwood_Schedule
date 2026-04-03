@@ -1313,7 +1313,7 @@ body:has(.mobile-continue-bar) {
         align-items: center;
         gap: 0.5rem;
         position: fixed;
-        top: 1.25rem;
+        top: 70px; /* below the sticky site header */
         right: 1.5rem;
         background: var(--charcoal-lt);
         border: 1px solid rgba(254,214,17,0.4);
@@ -1325,7 +1325,7 @@ body:has(.mobile-continue-bar) {
         font-weight: 700;
         cursor: pointer;
         box-shadow: var(--shadow);
-        z-index: 190;
+        z-index: 90; /* below site header (100) */
         transition: border-color var(--transition), box-shadow var(--transition);
     }
 
@@ -1339,11 +1339,11 @@ body:has(.mobile-continue-bar) {
         opacity: 0.7;
     }
 
-    /* Modal anchors to top-right to match button position */
+    /* Modal drops below the float button */
     .price-modal {
         align-items: flex-start;
         justify-content: flex-end;
-        padding: 4rem 1.5rem 0 0;
+        padding: 115px 1.5rem 0 0;
     }
 }
 
