@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Please select a start time.';
     } else {
         // Verify this slot is still available server-side
-        $valid_slots = get_available_slots($date, $hours);
+        $valid_slots = get_available_slots($date);
         if (!in_array($start_time, $valid_slots, true)) {
             $errors[] = 'That time slot is no longer available. Please choose another.';
         }
@@ -139,7 +139,7 @@ render_header('Choose Date & Time', 'book');
             <span style="color:#555"><span style="display:inline-block;width:12px;height:12px;background:#333;border-radius:3px;margin-right:4px;vertical-align:middle;"></span>Past</span>
         </div>
         <p class="text-center text-xs mb-3" style="color:var(--text-dim);">
-            Don't see the date you need?
+            Don't see the date or time you need?
             <a href="https://sherwoodadventure.com/contact-us.html" target="_blank">Contact us</a>
             — we may be able to accommodate special requests.
         </p>
@@ -304,7 +304,7 @@ render_header('Choose Date & Time', 'book');
         slotsGrid.innerHTML        = '';
         slotsNone.style.display    = 'none';
 
-        fetch(APP_URL + '/booking/slots.php?date=' + date + '&hours=' + hours)
+        fetch(APP_URL + '/booking/slots.php?date=' + date)
             .then(r => r.json())
             .then(data => {
                 slotsLoad.style.display = 'none';

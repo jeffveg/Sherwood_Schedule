@@ -43,10 +43,11 @@ function get_day_window(string $date): ?array {
 }
 
 /**
- * Get available start-time slots for a date + duration.
- * Returns array of 'H:i' strings (30-minute intervals).
+ * Get available start-time slots for a date.
+ * Windows define valid START times only — no end-time constraint applied.
+ * Returns array of 'H:i' strings (1-hour intervals).
  */
-function get_available_slots(string $date, float $duration_hours): array {
+function get_available_slots(string $date): array {
     $window = get_day_window($date);
     if (!$window) return [];
 
@@ -59,52 +60,34 @@ function get_available_slots(string $date, float $duration_hours): array {
         $close_ts = strtotime($date . ' ' . $window['close']);
     }
 
-    $duration_sec = (int)round($duration_hours * 3600);
-    $interval_sec = 1800; // 30-minute slots
+    $interval_sec = 3600; // 1-hour start-time slots
 
-    // Fetch existing bookings that could conflict with this date
+    // Block start times already taken by existing bookings on this date
     $prev = date('Y-m-d', strtotime($date . ' -1 day'));
     $db   = get_db();
     $stmt = $db->prepare(
-        "SELECT event_date, start_time, end_time, crosses_midnight
+        "SELECT event_date, start_time
          FROM bookings
          WHERE booking_status NOT IN ('cancelled','rescheduled')
            AND (event_date = ? OR (event_date = ? AND crosses_midnight = 1))"
     );
     $stmt->execute([$date, $prev]);
 
-    $booked = [];
+    $booked_starts = [];
     foreach ($stmt->fetchAll() as $b) {
-        $b_start    = strtotime($b['event_date'] . ' ' . $b['start_time']);
-        $end_date   = $b['crosses_midnight']
-            ? date('Y-m-d', strtotime($b['event_date'] . ' +1 day'))
-            : $b['event_date'];
-        $b_end      = strtotime($end_date . ' ' . $b['end_time']);
-        $booked[]   = [$b_start, $b_end];
+        $booked_starts[] = strtotime($b['event_date'] . ' ' . $b['start_time']);
     }
 
-    // Lead-time cutoff — can't book within BOOKING_LEAD_DAYS
+    // Lead-time cutoff
     $earliest_allowed = strtotime('+' . BOOKING_LEAD_DAYS . ' days', strtotime('today'));
 
     $slots   = [];
     $current = $open_ts;
 
-    while ($current + $duration_sec <= $close_ts) {
-        $slot_end = $current + $duration_sec;
-
-        if ($current >= $earliest_allowed) {
-            $conflict = false;
-            foreach ($booked as [$b_start, $b_end]) {
-                if ($current < $b_end && $slot_end > $b_start) {
-                    $conflict = true;
-                    break;
-                }
-            }
-            if (!$conflict) {
-                $slots[] = date('H:i', $current);
-            }
+    while ($current < $close_ts) {
+        if ($current >= $earliest_allowed && !in_array($current, $booked_starts, true)) {
+            $slots[] = date('H:i', $current);
         }
-
         $current += $interval_sec;
     }
 

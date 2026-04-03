@@ -12,11 +12,9 @@ header('Content-Type: application/json');
 
 wizard_start();
 
-$date  = $_GET['date']  ?? '';
-$hours = (float)($_GET['hours'] ?? 0);
+$date = $_GET['date'] ?? '';
 
-// Basic validation
-if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || $hours <= 0) {
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
     echo json_encode(['error' => 'Invalid request']);
     exit;
 }
@@ -28,7 +26,7 @@ if (strtotime($date) < $lead_cutoff) {
     exit;
 }
 
-$slots = get_available_slots($date, $hours);
+$slots = get_available_slots($date);
 
 // Format for display: 'H:i' => '10:00 AM'
 $formatted = [];

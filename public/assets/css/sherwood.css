@@ -446,6 +446,7 @@ main { flex: 1; padding: 2rem 0 4rem; }
     border: 1px solid transparent;
     background: transparent;
     color: var(--text);
+    position: relative;
 }
 
 .cal-day:hover:not(.unavailable):not(.past) {
@@ -461,9 +462,20 @@ main { flex: 1; padding: 2rem 0 4rem; }
 }
 
 .cal-day.today {
-    border: 2px solid var(--orange);
     color: var(--orange);
     font-weight: 700;
+}
+
+.cal-day.today::after {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 5px;
+    height: 5px;
+    background-color: var(--orange);
+    border-radius: 50%;
 }
 
 /* Past dates — dark, barely visible */
