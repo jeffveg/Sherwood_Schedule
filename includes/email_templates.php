@@ -61,7 +61,8 @@ function send_booking_confirmation(array $booking, array $customer, array $addon
                 'wave_invoice'  => 'Wave Invoice',
                 'other'         => 'Other',
             ];
-            $type_label   = ucfirst(str_replace('_', ' ', $p['payment_type']));
+            $type_labels  = ['deposit' => 'Deposit', 'balance' => 'Payment', 'cancellation_fee' => 'Cancellation Fee', 'refund' => 'Refund'];
+            $type_label   = $type_labels[$p['payment_type']] ?? ucfirst(str_replace('_', ' ', $p['payment_type']));
             $method_label = $method_labels[$p['payment_method']] ?? ucfirst($p['payment_method']);
             $label = $type_label . ' (' . $method_label . ')';
             $is_refund = $p['payment_type'] === 'refund';
