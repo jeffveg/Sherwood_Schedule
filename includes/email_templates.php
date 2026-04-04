@@ -87,17 +87,21 @@ function send_booking_confirmation(array $booking, array $customer, array $addon
         $payments_html = email_price_row('Paid (' . $payment_opt . ')', '$' . number_format($booking['amount_paid'], 2), '#7ec89a');
     }
 
-    // Balance note
-    if ($booking['payment_option'] === 'deposit' && $booking['balance_due'] > 0) {
-        $balance_html = '
-        <tr>
-            <td colspan="2" style="padding:12px 0 0; font-size:13px; color:#a0a0a0;">
-                Balance of <strong style="color:#fed611;">$' . number_format($booking['balance_due'], 2) . '</strong>
-                is due before your event. You\'ll receive a payment link closer to your event date.
-            </td>
-        </tr>';
+    // Balance due / paid in full line
+    $balance_due = (float)$booking['balance_due'];
+    if ($balance_due > 0) {
+        $balance_html =
+            '<tr><td colspan="2" style="padding:4px 0;border-top:1px solid #3a3c3d;"></td></tr>' .
+            email_price_row('<strong>Balance Due</strong>', '<strong>$' . number_format($balance_due, 2) . '</strong>', '#ffa133') . '
+            <tr>
+                <td colspan="2" style="padding:8px 0 0; font-size:13px; color:#a0a0a0;">
+                    Balance is due before your event. You\'ll receive a payment link closer to your event date.
+                </td>
+            </tr>';
     } else {
-        $balance_html = '';
+        $balance_html =
+            '<tr><td colspan="2" style="padding:4px 0;border-top:1px solid #3a3c3d;"></td></tr>' .
+            email_price_row('<strong>Balance Due</strong>', '<strong style="color:#7ec89a;">Paid in Full</strong>', '#7ec89a');
     }
 
     $subject = "Booking Confirmed — {$ref} — {$attraction_name} on {$event_date}";
