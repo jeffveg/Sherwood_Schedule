@@ -270,11 +270,6 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
         </div>
         <?php endif; ?>
 
-    </div><!-- /left -->
-
-    <!-- RIGHT COLUMN -->
-    <div>
-
         <!-- Pricing -->
         <div class="admin-panel mb-3">
             <div class="admin-panel__header">Pricing</div>
@@ -374,23 +369,10 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
             </div>
         </div>
 
-        <!-- Travel Fee Override -->
-        <div class="admin-panel mb-3">
-            <div class="admin-panel__header">Travel Fee Override</div>
-            <div class="admin-panel__body">
-                <p class="text-dim text-sm mb-2">
-                    Current: <?= $booking['travel_miles'] ? number_format($booking['travel_miles'], 1) . ' mi → ' : 'distance unknown → ' ?>
-                    <strong>$<?= number_format($booking['travel_fee'], 2) ?></strong>
-                    <?= $booking['travel_fee_overridden'] ? '<span class="badge badge-warning">manually set</span>' : '' ?>
-                </p>
-                <form method="POST" class="d-flex gap-1 align-center">
-                    <input type="hidden" name="action" value="travel_fee">
-                    <input type="number" name="travel_fee" class="form-input" step="0.01" min="0"
-                           value="<?= number_format($booking['travel_fee'], 2) ?>" style="max-width:140px;">
-                    <button type="submit" class="btn btn-secondary btn-sm">Set Fee</button>
-                </form>
-            </div>
-        </div>
+    </div><!-- /left -->
+
+    <!-- RIGHT COLUMN -->
+    <div>
 
         <!-- Booking Status -->
         <div class="admin-panel mb-3">
@@ -433,6 +415,24 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
                     <textarea name="admin_notes" class="form-input" rows="4"
                               placeholder="Internal notes — not visible to customer"><?= htmlspecialchars($booking['admin_notes'] ?? '') ?></textarea>
                     <button type="submit" class="btn btn-secondary btn-sm mt-2">Save Notes</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Travel Fee Override -->
+        <div class="admin-panel mb-3">
+            <div class="admin-panel__header">Travel Fee Override</div>
+            <div class="admin-panel__body">
+                <p class="text-dim text-sm mb-2">
+                    Current: <?= $booking['travel_miles'] ? number_format($booking['travel_miles'], 1) . ' mi → ' : 'distance unknown → ' ?>
+                    <strong>$<?= number_format($booking['travel_fee'], 2) ?></strong>
+                    <?= $booking['travel_fee_overridden'] ? '<span class="badge badge-warning">manually set</span>' : '' ?>
+                </p>
+                <form method="POST" class="d-flex gap-1 align-center">
+                    <input type="hidden" name="action" value="travel_fee">
+                    <input type="number" name="travel_fee" class="form-input" step="0.01" min="0"
+                           value="<?= number_format($booking['travel_fee'], 2) ?>" style="max-width:140px;">
+                    <button type="submit" class="btn btn-secondary btn-sm">Set Fee</button>
                 </form>
             </div>
         </div>
