@@ -320,6 +320,13 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
                             <?= $p['payment_type'] === 'refund' ? '−' : '' ?>$<?= number_format($p['amount'], 2) ?>
                         </td>
                     </tr>
+                    <?php if ($p['square_payment_id']): ?>
+                    <tr>
+                        <td colspan="4" class="text-xs text-dim" style="padding-bottom:6px;">
+                            Square Txn: <code><?= htmlspecialchars($p['square_payment_id']) ?></code>
+                        </td>
+                    </tr>
+                    <?php endif; ?>
                     <?php endforeach; ?>
                 </table>
                 <?php else: ?>

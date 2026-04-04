@@ -8,6 +8,7 @@
  */
 function send_booking_confirmation(array $booking, array $customer, array $addon_lines, string $attraction_name): bool {
     require_once __DIR__ . '/mailer.php';
+    require_once __DIR__ . '/db.php';
 
     $ref          = $booking['booking_ref'];
     $event_date   = date('l, F j, Y', strtotime($booking['event_date']));
@@ -40,6 +41,22 @@ function send_booking_confirmation(array $booking, array $customer, array $addon
     $coupon_html = '';
     if ($booking['coupon_discount'] > 0) {
         $coupon_html = email_price_row('Discount (' . htmlspecialchars($booking['coupon_code']) . ')', '&minus;$' . number_format($booking['coupon_discount'], 2), '#7ec89a');
+    }
+
+    // Square payment reference
+    $square_ref_html = '';
+    if (!empty($booking['id'])) {
+        $db = get_db();
+        $ref_stmt = $db->prepare(
+            'SELECT square_payment_id FROM payments
+             WHERE booking_id = ? AND square_payment_id IS NOT NULL
+             ORDER BY created_at DESC LIMIT 1'
+        );
+        $ref_stmt->execute([$booking['id']]);
+        $square_payment_id = $ref_stmt->fetchColumn();
+        if ($square_payment_id) {
+            $square_ref_html = email_price_row('Payment Reference', htmlspecialchars($square_payment_id), '#a0a0a0', 'normal');
+        }
     }
 
     // Balance note
@@ -82,6 +99,7 @@ function send_booking_confirmation(array $booking, array $customer, array $addon
                 <tr><td colspan='2' style='padding:6px 0;border-top:1px solid #3a3c3d;'></td></tr>
                 " . email_price_row('<strong>Total</strong>', '<strong>$' . number_format($booking['grand_total'], 2) . '</strong>') . "
                 " . email_price_row('Paid Today (' . $payment_opt . ')', '$' . number_format($booking['amount_paid'], 2), '#7ec89a') . "
+                {$square_ref_html}
                 {$balance_html}
             </table>
         ") . "
