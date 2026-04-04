@@ -1280,6 +1280,207 @@ select {
 .badge-paid        { background-color: rgba(45,138,78,0.2);  color: #7ec89a; }
 .badge-collect     { background-color: rgba(100,100,100,0.2);color: var(--text-dim); }
 
+/* ---- Admin Badge classes ---------------------------------- */
+/* Used by booking_status_badge() and payment_status_badge()  */
+.badge-success  { background-color: rgba(45,138,78,0.2);   color: #7ec89a; }
+.badge-warning  { background-color: rgba(230,126,34,0.2);  color: var(--orange); }
+.badge-danger   { background-color: rgba(192,57,43,0.2);   color: #e88; }
+.badge-info     { background-color: rgba(41,128,185,0.2);  color: #7ab8df; }
+.badge-default  { background-color: rgba(100,100,100,0.2); color: var(--text-dim); }
+
+/* ---- Admin Stat Cards ------------------------------------- */
+.admin-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.admin-stat-card {
+    background-color: var(--charcoal-lt);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+}
+
+.admin-stat-card--gold    { border-color: rgba(254,214,17,0.3); }
+.admin-stat-card--warning { border-color: rgba(230,126,34,0.4); }
+
+.admin-stat-card__value {
+    font-family: var(--font-heading);
+    font-size: 2.2rem;
+    color: var(--gold);
+    line-height: 1;
+    margin-bottom: 0.4rem;
+}
+
+.admin-stat-card--warning .admin-stat-card__value { color: var(--orange); }
+
+.admin-stat-card__label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+}
+
+/* ---- Admin Section Header --------------------------------- */
+.admin-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.admin-section-title {
+    font-family: var(--font-heading);
+    font-size: 1.4rem;
+    color: var(--text);
+    margin: 0;
+}
+
+/* ---- Admin Filter Bar ------------------------------------- */
+.admin-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.admin-search { flex: 1; min-width: 220px; }
+
+/* ---- Admin Status Tabs ------------------------------------ */
+.admin-status-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--charcoal-lt);
+    margin-bottom: 1rem;
+    overflow-x: auto;
+}
+
+.admin-status-tab {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    color: var(--text-dim);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    white-space: nowrap;
+    transition: color var(--transition), border-color var(--transition);
+}
+
+.admin-status-tab:hover { color: var(--text); }
+
+.admin-status-tab.active {
+    color: var(--gold);
+    border-bottom-color: var(--gold);
+}
+
+.admin-status-tab__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--charcoal-lt);
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 0.4rem;
+    color: var(--text-dim);
+}
+
+.admin-status-tab.active .admin-status-tab__count {
+    background-color: rgba(254,214,17,0.15);
+    color: var(--gold);
+}
+
+/* ---- Admin Pagination ------------------------------------- */
+.admin-pagination {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 1.25rem;
+}
+
+/* ---- Admin Detail Grid (2-col) ---------------------------- */
+.admin-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 1.5rem;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .admin-detail-grid { grid-template-columns: 1fr; }
+}
+
+/* ---- Admin Panel (card-like section) ---------------------- */
+.admin-panel {
+    border: 1px solid var(--charcoal-lt);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.admin-panel__header {
+    background-color: var(--forest);
+    padding: 0.6rem 1rem;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--orange);
+    font-weight: 700;
+}
+
+.admin-panel__body {
+    padding: 1rem;
+}
+
+/* ---- Detail Table (label/value pairs) --------------------- */
+.detail-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.detail-table th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--charcoal-lt);
+    font-weight: 700;
+    font-family: var(--font-body);
+    text-align: left;
+}
+
+.detail-table td {
+    padding: 0.4rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    vertical-align: top;
+}
+
+.detail-table td:first-child {
+    color: var(--text-dim);
+    width: 130px;
+    min-width: 100px;
+    padding-right: 1rem;
+}
+
+.detail-table tr:last-child td { border-bottom: none; }
+
+.detail-table .text-right { text-align: right; }
+
+/* ---- Small form inputs (used in settings table) ----------- */
+.form-input--sm {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.85rem;
+}
+
 /* ---- Admin Table ------------------------------------------ */
 .data-table {
     width: 100%;
