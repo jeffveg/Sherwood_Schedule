@@ -155,6 +155,49 @@ function send_booking_confirmation(array $booking, array $customer, array $addon
 }
 
 /**
+ * Send a balance payment link email to the customer.
+ */
+function send_balance_payment_link(array $booking, array $customer, string $attraction_name, string $payment_url): bool {
+    require_once __DIR__ . '/mailer.php';
+
+    $ref        = $booking['booking_ref'];
+    $event_date = date('l, F j, Y', strtotime($booking['event_date']));
+    $balance    = number_format($booking['balance_due'], 2);
+
+    $subject = "Balance Payment Due — {$ref} — {$attraction_name}";
+
+    $html = email_wrapper("Balance Payment", "
+        <p style='font-size:16px; margin:0 0 20px;'>
+            Hi {$customer['first_name']}, your balance payment of
+            <strong style='color:#fed611;'>\${$balance}</strong>
+            is due for your upcoming {$attraction_name} event on {$event_date}.
+        </p>
+
+        " . email_section("Payment", "
+            " . email_detail_row('Booking Ref', $ref) . "
+            " . email_detail_row('Event Date', $event_date) . "
+            " . email_detail_row('Balance Due', '$' . $balance) . "
+        ") . "
+
+        <p style='text-align:center;margin:28px 0;'>
+            <a href='" . htmlspecialchars($payment_url) . "'
+               style='background:#fed611;color:#111;padding:14px 32px;border-radius:8px;
+                      text-decoration:none;font-weight:700;font-size:16px;display:inline-block;'>
+                Pay Balance Now
+            </a>
+        </p>
+
+        <p style='font-size:13px; color:#a0a0a0; margin:24px 0 0;'>
+            Questions? Reply to this email or visit
+            <a href='https://sherwoodadventure.com/contact-us.html' style='color:#fed611;'>our contact page</a>.
+        </p>
+    ");
+
+    $to = $customer['first_name'] . ' ' . $customer['last_name'] . ' <' . $customer['email'] . '>';
+    return send_email($to, $subject, $html, [], SMTP_USER);
+}
+
+/**
  * Send admin-only notification when a new booking is created.
  */
 function send_admin_booking_notification(array $booking, array $customer, string $attraction_name): bool {

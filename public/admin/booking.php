@@ -162,6 +162,103 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // Generate Square balance payment link and email it
+    elseif ($action === 'balance_link') {
+        $balance_due = (float)$booking['balance_due'];
+        if ($balance_due <= 0) {
+            $flash_type = 'danger';
+            $flash = 'No balance due on this booking.';
+        } else {
+            $square_base = (SQUARE_ENVIRONMENT === 'production')
+                ? 'https://connect.squareup.com'
+                : 'https://connect.squareupsandbox.com';
+
+            $amount_cents = (int)round($balance_due * 100);
+            $description  = $booking['attraction_name'] . ' — Balance — ' . date('M j, Y', strtotime($booking['event_date']));
+
+            $payload = [
+                'idempotency_key' => 'bal-' . $booking['booking_ref'] . '-' . time(),
+                'order' => [
+                    'location_id' => SQUARE_LOCATION_ID,
+                    'line_items'  => [[
+                        'name'             => $description,
+                        'quantity'         => '1',
+                        'base_price_money' => ['amount' => $amount_cents, 'currency' => 'USD'],
+                    ]],
+                    'reference_id' => $booking['booking_ref'],
+                ],
+                'checkout_options' => [
+                    'redirect_url'             => APP_URL . '/booking/confirm.php?ref=' . urlencode($booking['booking_ref']),
+                    'ask_for_shipping_address' => false,
+                ],
+                'pre_populated_data' => ['buyer_email' => $booking['email']],
+            ];
+
+            $ch = curl_init($square_base . '/v2/online-checkout/payment-links');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST           => true,
+                CURLOPT_HTTPHEADER     => [
+                    'Square-Version: 2024-01-17',
+                    'Authorization: Bearer ' . SQUARE_ACCESS_TOKEN,
+                    'Content-Type: application/json',
+                ],
+                CURLOPT_POSTFIELDS => json_encode($payload),
+                CURLOPT_TIMEOUT    => 15,
+            ]);
+            $response  = curl_exec($ch);
+            $curl_err  = curl_error($ch);
+            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($curl_err || $http_code !== 200) {
+                $flash_type = 'danger';
+                $flash = 'Could not create Square payment link. Check server logs.';
+                error_log('Square balance link error (' . $http_code . '): ' . ($curl_err ?: $response));
+            } else {
+                $data        = json_decode($response, true);
+                $payment_url = $data['payment_link']['url'] ?? '';
+
+                if (!$payment_url) {
+                    $flash_type = 'danger';
+                    $flash = 'Square returned no payment URL.';
+                } else {
+                    // Save to payments table as pending
+                    $db->prepare(
+                        'INSERT INTO payments (booking_id, payment_type, amount, payment_method,
+                         square_payment_link_id, square_order_id, status)
+                         VALUES (?, "balance", ?, "square_online", ?, ?, "pending")'
+                    )->execute([
+                        $id, $balance_due,
+                        $data['payment_link']['id'] ?? null,
+                        $data['payment_link']['order_id'] ?? null,
+                    ]);
+
+                    // Email the customer
+                    $cust_row = $db->prepare('SELECT * FROM customers WHERE id = ?');
+                    $cust_row->execute([$booking['customer_id']]);
+                    $cust = $cust_row->fetch();
+
+                    $booking['balance_payment_url'] = $payment_url;
+                    $sent = $cust ? send_balance_payment_link($booking, $cust, $booking['attraction_name'], $payment_url) : false;
+
+                    $db->prepare('UPDATE bookings SET balance_link_sent = 1, updated_at = NOW() WHERE id = ?')->execute([$id]);
+
+                    $flash = 'Payment link created' . ($sent ? ' and emailed to ' . htmlspecialchars($booking['email']) : ' (email failed — copy link below)') . '.';
+                    $flash_type = $sent ? 'success' : 'warning';
+
+                    // Store URL in session so we can display it after redirect
+                    $_SESSION['balance_payment_url'] = $payment_url;
+
+                    $stmt->execute([$id]);
+                    $booking = $stmt->fetch();
+                    $pay_stmt->execute([$id]);
+                    $payments = $pay_stmt->fetchAll();
+                }
+            }
+        }
+    }
+
     // Resend confirmation email
     elseif ($action === 'resend_email') {
         $cust_row = $db->prepare('SELECT * FROM customers WHERE id = ?');
@@ -202,6 +299,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $event_date  = date('l, F j, Y', strtotime($booking['event_date']));
 $event_time  = date('g:i A', strtotime($booking['start_time']));
 $end_time    = date('g:i A', strtotime($booking['end_time']));
+
+// Pick up balance payment URL from session (set after link creation)
+$balance_payment_url = $_SESSION['balance_payment_url'] ?? '';
+unset($_SESSION['balance_payment_url']);
 
 render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
 ?>
@@ -500,6 +601,31 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
                 </form>
             </div>
         </div>
+
+        <!-- Balance Payment Link -->
+        <?php if ($booking['balance_due'] > 0): ?>
+        <div class="admin-panel mb-3">
+            <div class="admin-panel__header">Collect Balance — $<?= number_format($booking['balance_due'], 2) ?></div>
+            <div class="admin-panel__body">
+                <?php if ($balance_payment_url): ?>
+                <div class="alert alert-success mb-2" style="word-break:break-all;">
+                    <strong>Payment link:</strong><br>
+                    <a href="<?= htmlspecialchars($balance_payment_url) ?>" target="_blank" style="color:var(--gold);">
+                        <?= htmlspecialchars($balance_payment_url) ?>
+                    </a>
+                </div>
+                <?php endif; ?>
+                <p class="text-dim text-sm mb-2">
+                    Creates a Square payment link for the remaining balance and emails it to
+                    <strong><?= htmlspecialchars($booking['email']) ?></strong>.
+                </p>
+                <form method="POST">
+                    <input type="hidden" name="action" value="balance_link">
+                    <button type="submit" class="btn btn-primary btn-sm">Send Balance Link</button>
+                </form>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- WaveApps -->
         <?php if ($booking['wave_invoice_id']): ?>

@@ -218,6 +218,7 @@ CREATE TABLE bookings (
 
     -- Notifications
     confirmation_sent   TINYINT(1) NOT NULL DEFAULT 0,
+    balance_link_sent   TINYINT(1) NOT NULL DEFAULT 0,
 
     -- WaveApps
     wave_invoice_id     VARCHAR(100) NULL,
