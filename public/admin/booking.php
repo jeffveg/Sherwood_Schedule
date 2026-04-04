@@ -188,7 +188,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'reference_id' => $booking['booking_ref'],
                 ],
                 'checkout_options' => [
-                    'redirect_url'             => APP_URL . '/booking/confirm.php?ref=' . urlencode($booking['booking_ref']),
+                    'redirect_url'             => APP_URL . '/booking/confirm.php?ref=' . urlencode($booking['booking_ref']) . '&type=balance',
                     'ask_for_shipping_address' => false,
                 ],
                 'pre_populated_data' => ['buyer_email' => $booking['email']],

@@ -46,7 +46,9 @@ if ($booking_ref) {
 // Clear wizard session now that booking is confirmed
 wizard_clear();
 
-render_header('Booking Confirmed', 'book');
+$is_balance_payment = ($_GET['type'] ?? '') === 'balance';
+
+render_header($is_balance_payment ? 'Payment Received' : 'Booking Confirmed', 'book');
 ?>
 
 <div class="container container--narrow">
@@ -59,6 +61,18 @@ render_header('Booking Confirmed', 'book');
         </div>
     <?php else: ?>
 
+    <?php if ($is_balance_payment): ?>
+    <div class="text-center mb-4 mt-2">
+        <div style="font-size:3rem; margin-bottom:0.5rem;">✅</div>
+        <h2>Payment Received!</h2>
+        <p class="text-dim">
+            Your balance payment for booking
+            <strong style="color:var(--gold);"><?= h($booking['booking_ref']) ?></strong>
+            has been received.
+        </p>
+        <p class="text-dim">A receipt will be sent to <strong><?= h($customer['email'] ?? '') ?></strong>.</p>
+    </div>
+    <?php else: ?>
     <div class="text-center mb-4 mt-2">
         <div style="font-size:3rem; margin-bottom:0.5rem;">🎉</div>
         <h2>You're Booked!</h2>
@@ -68,18 +82,26 @@ render_header('Booking Confirmed', 'book');
         </p>
         <p class="text-dim">A confirmation email will be sent to <strong><?= h($customer['email'] ?? '') ?></strong>.</p>
     </div>
+    <?php endif; ?>
 
     <!-- Payment status notice -->
     <?php
-    $paid_label = match($booking['payment_status']) {
-        'deposit_paid'  => 'Deposit received — balance due before your event.',
-        'paid_in_full'  => 'Paid in full — no balance due.',
-        default         => 'Payment pending — we\'ll confirm once processing is complete.',
-    };
-    $paid_class = match($booking['payment_status']) {
-        'deposit_paid', 'paid_in_full' => 'alert-success',
-        default => 'alert-warning',
-    };
+    if ($is_balance_payment) {
+        $paid_label = (float)$booking['balance_due'] <= 0
+            ? 'Payment received — your balance is now paid in full.'
+            : 'Payment received — thank you!';
+        $paid_class = 'alert-success';
+    } else {
+        $paid_label = match($booking['payment_status']) {
+            'deposit_paid'  => 'Deposit received — balance due before your event.',
+            'paid_in_full'  => 'Paid in full — no balance due.',
+            default         => 'Payment pending — we\'ll confirm once processing is complete.',
+        };
+        $paid_class = match($booking['payment_status']) {
+            'deposit_paid', 'paid_in_full' => 'alert-success',
+            default => 'alert-warning',
+        };
+    }
     ?>
     <div class="alert <?= $paid_class ?> mb-3">
         <?= h($paid_label) ?>
@@ -170,7 +192,7 @@ render_header('Booking Confirmed', 'book');
             <span>$<?= number_format($booking['grand_total'], 2) ?></span>
         </div>
 
-        <?php if ($booking['payment_option'] === 'deposit' && $booking['balance_due'] > 0): ?>
+        <?php if (!$is_balance_payment && $booking['payment_option'] === 'deposit' && $booking['balance_due'] > 0): ?>
         <div class="price-deposit-note mt-2">
             Balance due before event: <strong>$<?= number_format($booking['balance_due'], 2) ?></strong>
         </div>
