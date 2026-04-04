@@ -342,7 +342,8 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
                     <?php foreach ($payments as $p): ?>
                     <tr>
                         <td class="text-sm"><?= $p['paid_at'] ? date('M j, Y', strtotime($p['paid_at'])) : '—' ?></td>
-                        <td><?= ucfirst(str_replace('_',' ',$p['payment_type'])) ?></td>
+                        <?php $type_labels = ['deposit'=>'Deposit','balance'=>'Payment','cancellation_fee'=>'Cancellation Fee','refund'=>'Refund']; ?>
+                        <td><?= $type_labels[$p['payment_type']] ?? ucfirst(str_replace('_',' ',$p['payment_type'])) ?></td>
                         <td class="text-sm text-dim"><?= ucfirst(str_replace('_',' ',$p['payment_method'])) ?></td>
                         <td class="text-right <?= $p['payment_type'] === 'refund' ? 'text-danger' : 'text-success' ?>">
                             <?= $p['payment_type'] === 'refund' ? '−' : '' ?>$<?= number_format($p['amount'], 2) ?>
@@ -385,7 +386,7 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
                                 <label class="form-label">Type</label>
                                 <select name="pay_type" class="form-input">
                                     <option value="deposit">Deposit</option>
-                                    <option value="balance">Balance</option>
+                                    <option value="balance">Payment</option>
                                     <option value="cancellation_fee">Cancellation Fee</option>
                                     <option value="refund">Refund</option>
                                 </select>
