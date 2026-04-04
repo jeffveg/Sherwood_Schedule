@@ -13,6 +13,7 @@
  */
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/email_templates.php';
 
 // ── Verify Square signature ────────────────────────────────────────────────
 $raw_body  = file_get_contents('php://input');
@@ -78,6 +79,34 @@ function update_booking_payment(PDO $db, string $order_id, string $status, float
          booking_status = "confirmed", updated_at = NOW()
          WHERE id = ?'
     )->execute([$payment_status, $amount_paid, $balance_due, $booking_id]);
+
+    // Send confirmation email (only once — check confirmation_sent flag)
+    $chk = $db->prepare('SELECT confirmation_sent, customer_id, attraction_id FROM bookings WHERE id = ?');
+    $chk->execute([$booking_id]);
+    $brow = $chk->fetch();
+
+    if ($brow && !$brow['confirmation_sent']) {
+        // Load full booking row
+        $bstmt = $db->prepare('SELECT b.*, a.name AS attraction_name FROM bookings b JOIN attractions a ON a.id = b.attraction_id WHERE b.id = ?');
+        $bstmt->execute([$booking_id]);
+        $full_booking = $bstmt->fetch();
+
+        $cstmt = $db->prepare('SELECT * FROM customers WHERE id = ?');
+        $cstmt->execute([$brow['customer_id']]);
+        $customer = $cstmt->fetch();
+
+        $addon_stmt = $db->prepare('SELECT * FROM booking_addons WHERE booking_id = ?');
+        $addon_stmt->execute([$booking_id]);
+        $addon_lines = $addon_stmt->fetchAll();
+
+        if ($full_booking && $customer) {
+            $sent = send_booking_confirmation($full_booking, $customer, $addon_lines, $full_booking['attraction_name']);
+            if ($sent) {
+                $db->prepare('UPDATE bookings SET confirmation_sent = 1 WHERE id = ?')->execute([$booking_id]);
+            }
+            send_admin_booking_notification($full_booking, $customer, $full_booking['attraction_name']);
+        }
+    }
 }
 
 switch ($event_type) {

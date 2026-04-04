@@ -216,6 +216,9 @@ CREATE TABLE bookings (
     -- Rescheduling
     rescheduled_from_id INT NULL,                      -- original booking if rescheduled
 
+    -- Notifications
+    confirmation_sent   TINYINT(1) NOT NULL DEFAULT 0,
+
     -- WaveApps
     wave_invoice_id     VARCHAR(100) NULL,
 
