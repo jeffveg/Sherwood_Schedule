@@ -48,10 +48,10 @@ function wizard_require_step(int $step): void {
         5 => ['attraction_id', 'hours', 'event_date', 'start_time'],
         6 => ['attraction_id', 'hours', 'event_date', 'start_time',
               'customer_first', 'customer_email', 'customer_phone',
-              'venue_name', 'venue_address', 'venue_city'],
+              'venue_address', 'venue_city'],
         7 => ['attraction_id', 'hours', 'event_date', 'start_time',
               'customer_first', 'customer_email', 'customer_phone',
-              'venue_name', 'venue_address', 'venue_city', 'payment_option'],
+              'venue_address', 'venue_city', 'payment_option'],
     ];
 
     if (!isset($required_keys[$step])) return;
