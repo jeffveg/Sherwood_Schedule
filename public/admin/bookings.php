@@ -99,8 +99,12 @@ render_admin_header('Bookings', 'bookings');
     <input type="text" name="q" class="form-input admin-search"
            placeholder="Search ref, name, email, phone…"
            value="<?= htmlspecialchars($search) ?>">
-    <input type="date" name="from" class="form-input" value="<?= htmlspecialchars($from_date) ?>" title="Event date from">
-    <input type="date" name="to"   class="form-input" value="<?= htmlspecialchars($to_date) ?>"   title="Event date to">
+    <label class="d-flex align-center gap-1 text-sm text-dim" style="white-space:nowrap;">
+        From <input type="date" name="from" class="form-input" value="<?= htmlspecialchars($from_date) ?>" style="width:auto;">
+    </label>
+    <label class="d-flex align-center gap-1 text-sm text-dim" style="white-space:nowrap;">
+        To <input type="date" name="to" class="form-input" value="<?= htmlspecialchars($to_date) ?>" style="width:auto;">
+    </label>
     <input type="hidden" name="status" value="<?= htmlspecialchars($status) ?>">
     <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
     <a href="<?= APP_URL ?>/admin/bookings.php" class="btn btn-ghost btn-sm">Reset</a>

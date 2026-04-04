@@ -1447,7 +1447,9 @@ select {
     border-bottom: 2px solid var(--charcoal-lt);
     margin-bottom: 1rem;
     overflow-x: auto;
+    scrollbar-width: none;
 }
+.admin-status-tabs::-webkit-scrollbar { display: none; }
 
 .admin-status-tab {
     display: flex;
