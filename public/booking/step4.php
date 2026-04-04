@@ -335,12 +335,13 @@ render_header('Add-ons', 'book');
         if (floatTotal) floatTotal.textContent = fmt(finalTotal);
     }
 
-    // Card toggle behaviour
+    // Card toggle — listen on the checkbox change event so the browser's
+    // default label→checkbox activation doesn't cause a double-toggle.
     document.querySelectorAll('.addon-card').forEach(card => {
-        card.addEventListener('click', () => {
-            card.classList.toggle('selected');
-            const cb = card.querySelector('input[type="checkbox"]');
-            if (cb) cb.checked = !cb.checked;
+        const cb = card.querySelector('input[type="checkbox"]');
+        if (!cb) return;
+        cb.addEventListener('change', () => {
+            card.classList.toggle('selected', cb.checked);
             recalc();
         });
     });
