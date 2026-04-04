@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/layout.php';
 require_once __DIR__ . '/../../includes/admin_helpers.php';
+require_once __DIR__ . '/../../includes/email_templates.php';
 
 admin_require_login();
 date_default_timezone_set(APP_TIMEZONE);
@@ -125,6 +126,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $flash_type = 'danger';
             $flash = implode(' ', $errors);
+        }
+    }
+
+    // Resend confirmation email
+    elseif ($action === 'resend_email') {
+        $cust_row = $db->prepare('SELECT * FROM customers WHERE id = ?');
+        $cust_row->execute([$booking['customer_id']]);
+        $cust = $cust_row->fetch();
+
+        $addon_rows2 = $db->prepare('SELECT * FROM booking_addons WHERE booking_id = ?');
+        $addon_rows2->execute([$id]);
+        $addon_lines = $addon_rows2->fetchAll();
+
+        if ($cust && send_booking_confirmation($booking, $cust, $addon_lines, $booking['attraction_name'])) {
+            $db->prepare('UPDATE bookings SET confirmation_sent = 1 WHERE id = ?')->execute([$id]);
+            $flash = 'Confirmation email sent to ' . htmlspecialchars($cust['email']) . '.';
+        } else {
+            $flash_type = 'danger';
+            $flash = 'Failed to send email. Check server mail configuration.';
         }
     }
 
@@ -406,6 +426,27 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
                     <textarea name="admin_notes" class="form-input" rows="4"
                               placeholder="Internal notes — not visible to customer"><?= htmlspecialchars($booking['admin_notes'] ?? '') ?></textarea>
                     <button type="submit" class="btn btn-secondary btn-sm mt-2">Save Notes</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Email -->
+        <div class="admin-panel mb-3">
+            <div class="admin-panel__header">Confirmation Email</div>
+            <div class="admin-panel__body">
+                <p class="text-dim text-sm mb-2">
+                    <?php if ($booking['confirmation_sent']): ?>
+                        <span class="text-success">&#10003; Email sent</span>
+                    <?php else: ?>
+                        <span class="text-orange">Not yet sent</span>
+                    <?php endif; ?>
+                    &mdash; will be sent to <strong><?= htmlspecialchars($booking['email']) ?></strong>
+                </p>
+                <form method="POST">
+                    <input type="hidden" name="action" value="resend_email">
+                    <button type="submit" class="btn btn-ghost btn-sm">
+                        <?= $booking['confirmation_sent'] ? 'Resend Email' : 'Send Email' ?>
+                    </button>
                 </form>
             </div>
         </div>
