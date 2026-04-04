@@ -129,6 +129,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // Delete a manual payment record and recalc totals
+    elseif ($action === 'delete_payment') {
+        $pay_id = (int)($_POST['payment_id'] ?? 0);
+        if ($pay_id) {
+            $prow = $db->prepare('SELECT * FROM payments WHERE id = ? AND booking_id = ?');
+            $prow->execute([$pay_id, $id]);
+            $p = $prow->fetch();
+            if ($p) {
+                $db->prepare('DELETE FROM payments WHERE id = ?')->execute([$pay_id]);
+
+                // Recalc from remaining payments
+                $sum_stmt = $db->prepare(
+                    "SELECT COALESCE(SUM(CASE WHEN payment_type='refund' THEN -amount ELSE amount END), 0)
+                     FROM payments WHERE booking_id = ? AND status = 'completed'"
+                );
+                $sum_stmt->execute([$id]);
+                $new_paid    = round((float)$sum_stmt->fetchColumn(), 2);
+                $new_balance = max(0, round($booking['grand_total'] - $new_paid, 2));
+                $pay_status  = $new_balance <= 0.01 ? 'paid_in_full' : ($new_paid > 0 ? 'deposit_paid' : 'unpaid');
+
+                $db->prepare(
+                    'UPDATE bookings SET amount_paid = ?, balance_due = ?, payment_status = ?, updated_at = NOW() WHERE id = ?'
+                )->execute([$new_paid, $new_balance, $pay_status, $id]);
+
+                $flash = 'Payment record deleted.';
+                $stmt->execute([$id]);
+                $booking = $stmt->fetch();
+                $pay_stmt->execute([$id]);
+                $payments = $pay_stmt->fetchAll();
+            }
+        }
+    }
+
     // Resend confirmation email
     elseif ($action === 'resend_email') {
         $cust_row = $db->prepare('SELECT * FROM customers WHERE id = ?');
@@ -304,7 +337,7 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
                 <?php if ($payments): ?>
                 <table class="detail-table">
                     <thead><tr>
-                        <th>Date</th><th>Type</th><th>Method</th><th class="text-right">Amount</th>
+                        <th>Date</th><th>Type</th><th>Method</th><th class="text-right">Amount</th><th></th>
                     </tr></thead>
                     <?php foreach ($payments as $p): ?>
                     <tr>
@@ -314,10 +347,19 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
                         <td class="text-right <?= $p['payment_type'] === 'refund' ? 'text-danger' : 'text-success' ?>">
                             <?= $p['payment_type'] === 'refund' ? '−' : '' ?>$<?= number_format($p['amount'], 2) ?>
                         </td>
+                        <td>
+                            <?php if (!$p['square_payment_id']): ?>
+                            <form method="POST" onsubmit="return confirm('Delete this payment record?');">
+                                <input type="hidden" name="action" value="delete_payment">
+                                <input type="hidden" name="payment_id" value="<?= $p['id'] ?>">
+                                <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger);padding:2px 6px;">✕</button>
+                            </form>
+                            <?php endif; ?>
+                        </td>
                     </tr>
                     <?php if ($p['square_payment_id']): ?>
                     <tr>
-                        <td colspan="4" class="text-xs text-dim" style="padding-bottom:6px;">
+                        <td colspan="5" class="text-xs text-dim" style="padding-bottom:6px;">
                             Square Txn: <code><?= htmlspecialchars($p['square_payment_id']) ?></code>
                         </td>
                     </tr>
