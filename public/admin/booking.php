@@ -416,6 +416,19 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
     <!-- RIGHT COLUMN -->
     <div>
 
+        <!-- Admin Notes -->
+        <div class="admin-panel mb-3">
+            <div class="admin-panel__header">Admin Notes</div>
+            <div class="admin-panel__body">
+                <form method="POST">
+                    <input type="hidden" name="action" value="notes">
+                    <textarea name="admin_notes" class="form-input" rows="4"
+                              placeholder="Internal notes — not visible to customer"><?= htmlspecialchars($booking['admin_notes'] ?? '') ?></textarea>
+                    <button type="submit" class="btn btn-secondary btn-sm mt-2">Save Notes</button>
+                </form>
+            </div>
+        </div>
+
         <!-- Booking Status -->
         <div class="admin-panel mb-3">
             <div class="admin-panel__header">Update Status</div>
@@ -444,19 +457,6 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
                         </div>
                     </div>
                     <button type="submit" class="btn btn-secondary btn-sm">Update Status</button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Admin Notes -->
-        <div class="admin-panel mb-3">
-            <div class="admin-panel__header">Admin Notes</div>
-            <div class="admin-panel__body">
-                <form method="POST">
-                    <input type="hidden" name="action" value="notes">
-                    <textarea name="admin_notes" class="form-input" rows="4"
-                              placeholder="Internal notes — not visible to customer"><?= htmlspecialchars($booking['admin_notes'] ?? '') ?></textarea>
-                    <button type="submit" class="btn btn-secondary btn-sm mt-2">Save Notes</button>
                 </form>
             </div>
         </div>
