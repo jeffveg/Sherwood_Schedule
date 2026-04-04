@@ -43,11 +43,28 @@ function get_day_window(string $date): ?array {
 }
 
 /**
+ * Return true if a date already has an active booking (not cancelled/rescheduled).
+ * One booking per day is the business rule.
+ */
+function date_is_booked(string $date): bool {
+    $db   = get_db();
+    $stmt = $db->prepare(
+        "SELECT COUNT(*) FROM bookings
+         WHERE event_date = ? AND booking_status NOT IN ('cancelled','rescheduled')"
+    );
+    $stmt->execute([$date]);
+    return (int)$stmt->fetchColumn() > 0;
+}
+
+/**
  * Get available start-time slots for a date.
- * Windows define valid START times only — no end-time constraint applied.
- * Returns array of 'H:i' strings (1-hour intervals).
+ * Returns empty array if the day already has any active booking.
+ * Otherwise returns 'H:i' strings at 1-hour intervals within the availability window.
  */
 function get_available_slots(string $date): array {
+    // One booking per day — if anything is booked, the whole day is unavailable
+    if (date_is_booked($date)) return [];
+
     $window = get_day_window($date);
     if (!$window) return [];
 
@@ -60,24 +77,6 @@ function get_available_slots(string $date): array {
         $close_ts = strtotime($date . ' ' . $window['close']);
     }
 
-    $interval_sec = 3600; // 1-hour start-time slots
-
-    // Block start times already taken by existing bookings on this date
-    $prev = date('Y-m-d', strtotime($date . ' -1 day'));
-    $db   = get_db();
-    $stmt = $db->prepare(
-        "SELECT event_date, start_time
-         FROM bookings
-         WHERE booking_status NOT IN ('cancelled','rescheduled')
-           AND (event_date = ? OR (event_date = ? AND crosses_midnight = 1))"
-    );
-    $stmt->execute([$date, $prev]);
-
-    $booked_starts = [];
-    foreach ($stmt->fetchAll() as $b) {
-        $booked_starts[] = strtotime($b['event_date'] . ' ' . $b['start_time']);
-    }
-
     // Lead-time cutoff
     $earliest_allowed = strtotime('+' . BOOKING_LEAD_DAYS . ' days', strtotime('today'));
 
@@ -85,10 +84,10 @@ function get_available_slots(string $date): array {
     $current = $open_ts;
 
     while ($current < $close_ts) {
-        if ($current >= $earliest_allowed && !in_array($current, $booked_starts, true)) {
+        if ($current >= $earliest_allowed) {
             $slots[] = date('H:i', $current);
         }
-        $current += $interval_sec;
+        $current += 3600;
     }
 
     return $slots;
@@ -116,7 +115,15 @@ function get_month_day_status(string $year_month): array {
         $exc_map[$e['exception_date']] = (bool)$e['is_closed'];
     }
 
-    $lead_cutoff = strtotime('+' . BOOKING_LEAD_DAYS . ' days', strtotime('today midnight'));
+    // Dates that already have an active booking this month (one booking per day rule)
+    $stmt = $db->prepare(
+        "SELECT DISTINCT event_date FROM bookings
+         WHERE event_date LIKE ? AND booking_status NOT IN ('cancelled','rescheduled')"
+    );
+    $stmt->execute([$year_month . '-%']);
+    $booked_dates = array_flip($stmt->fetchAll(PDO::FETCH_COLUMN));
+
+    $lead_cutoff    = strtotime('+' . BOOKING_LEAD_DAYS . ' days', strtotime('today midnight'));
     $today_midnight = strtotime('today midnight');
 
     $days   = (int)date('t', strtotime($year_month . '-01'));
@@ -131,6 +138,8 @@ function get_month_day_status(string $year_month): array {
             $status = 'past';
         } elseif ($ts < $lead_cutoff) {
             $status = 'soon';
+        } elseif (isset($booked_dates[$date])) {
+            $status = 'closed';   // already booked — whole day unavailable
         } elseif (array_key_exists($date, $exc_map)) {
             $status = $exc_map[$date] ? 'closed' : 'available';
         } elseif (isset($rule_map[$dow])) {
