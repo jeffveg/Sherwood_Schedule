@@ -1649,7 +1649,7 @@ select {
 
 .admin-content {
     padding: 2rem;
-    overflow-x: auto;
+    overflow-x: hidden;
 }
 
 .admin-content .page-title {
