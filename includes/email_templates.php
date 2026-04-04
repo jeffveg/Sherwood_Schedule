@@ -14,8 +14,6 @@ function send_booking_confirmation(array $booking, array $customer, array $addon
     $event_date   = date('l, F j, Y', strtotime($booking['event_date']));
     $event_time   = date('g:i A', strtotime($booking['start_time']));
     $duration     = $booking['duration_hours'] . ' hour' . ($booking['duration_hours'] != 1 ? 's' : '');
-    $payment_opt  = $booking['payment_option'] === 'full' ? 'Paid in Full' : 'Deposit';
-
     $venue_parts = array_filter([
         $booking['venue_name'],
         $booking['venue_address'],
@@ -43,20 +41,50 @@ function send_booking_confirmation(array $booking, array $customer, array $addon
         $coupon_html = email_price_row('Discount (' . htmlspecialchars($booking['coupon_code']) . ')', '&minus;$' . number_format($booking['coupon_discount'], 2), '#7ec89a');
     }
 
-    // Square payment reference
-    $square_ref_html = '';
+    // Individual payment rows (one line per payment record)
+    $payments_html = '';
     if (!empty($booking['id'])) {
         $db = get_db();
-        $ref_stmt = $db->prepare(
-            'SELECT square_payment_id FROM payments
-             WHERE booking_id = ? AND square_payment_id IS NOT NULL
-             ORDER BY created_at DESC LIMIT 1'
+        $p_stmt = $db->prepare(
+            "SELECT payment_type, amount, payment_method, square_payment_id
+             FROM payments WHERE booking_id = ? AND status = 'completed'
+             ORDER BY created_at ASC"
         );
-        $ref_stmt->execute([$booking['id']]);
-        $square_payment_id = $ref_stmt->fetchColumn();
-        if ($square_payment_id) {
-            $square_ref_html = email_price_row('Payment Reference', htmlspecialchars($square_payment_id), '#a0a0a0', 'normal');
+        $p_stmt->execute([$booking['id']]);
+        $pay_records = $p_stmt->fetchAll();
+
+        foreach ($pay_records as $p) {
+            $method_labels = [
+                'square_online' => 'Square Online',
+                'square_pos'    => 'Square POS',
+                'check'         => 'Check',
+                'wave_invoice'  => 'Wave Invoice',
+                'other'         => 'Other',
+            ];
+            $type_label   = ucfirst(str_replace('_', ' ', $p['payment_type']));
+            $method_label = $method_labels[$p['payment_method']] ?? ucfirst($p['payment_method']);
+            $label = $type_label . ' (' . $method_label . ')';
+            $is_refund = $p['payment_type'] === 'refund';
+            $payments_html .= email_price_row(
+                htmlspecialchars($label),
+                ($is_refund ? '&minus;' : '') . '$' . number_format($p['amount'], 2),
+                $is_refund ? '#e74c3c' : '#7ec89a'
+            );
+            if ($p['square_payment_id']) {
+                $payments_html .= '
+                <tr>
+                    <td colspan="2" style="padding:0 0 6px;font-size:11px;color:#666;">
+                        Txn: ' . htmlspecialchars($p['square_payment_id']) . '
+                    </td>
+                </tr>';
+            }
         }
+    }
+
+    // Fallback if no payment records exist yet (e.g. collect_later bookings)
+    if (!$payments_html && $booking['amount_paid'] > 0) {
+        $payment_opt  = $booking['payment_option'] === 'full' ? 'Paid in Full' : 'Deposit';
+        $payments_html = email_price_row('Paid (' . $payment_opt . ')', '$' . number_format($booking['amount_paid'], 2), '#7ec89a');
     }
 
     // Balance note
@@ -98,8 +126,7 @@ function send_booking_confirmation(array $booking, array $customer, array $addon
                 " . email_price_row('Tax', '$' . number_format($booking['tax_total'], 2), '#a0a0a0', 'normal') . "
                 <tr><td colspan='2' style='padding:6px 0;border-top:1px solid #3a3c3d;'></td></tr>
                 " . email_price_row('<strong>Total</strong>', '<strong>$' . number_format($booking['grand_total'], 2) . '</strong>') . "
-                " . email_price_row('Paid Today (' . $payment_opt . ')', '$' . number_format($booking['amount_paid'], 2), '#7ec89a') . "
-                {$square_ref_html}
+                {$payments_html}
                 {$balance_html}
             </table>
         ") . "
