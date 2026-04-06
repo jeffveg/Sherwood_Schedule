@@ -127,6 +127,8 @@ function render_admin_header(string $title, string $active_nav = ''): void {
         <div class="admin-sidebar__section">System</div>
         <a href="<?= $app_url ?>/admin/availability.php"
            class="<?= $active_nav === 'availability' ? 'active' : '' ?>">Availability</a>
+        <a href="<?= $app_url ?>/admin/reports.php"
+           class="<?= $active_nav === 'reports' ? 'active' : '' ?>">Reports</a>
         <a href="<?= $app_url ?>/admin/settings.php"
            class="<?= $active_nav === 'settings' ? 'active' : '' ?>">Settings</a>
     </aside>
