@@ -12,6 +12,8 @@ require_once __DIR__ . '/../../includes/sms.php';
 require_once __DIR__ . '/../../includes/email_templates.php';
 require_once __DIR__ . '/../../includes/availability.php';
 
+// Security flags: secure (HTTPS only), httponly (no JS access), samesite Lax (CSRF mitigation)
+session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => true, 'httponly' => true, 'samesite' => 'Lax']);
 session_start();
 
 // ── Logout (must be before any output) ────────────────────────────────────
@@ -138,7 +140,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay_b
                 'reference_id' => $pb['booking_ref'],
             ],
             'checkout_options'  => [
-                'redirect_url'             => APP_URL . '/booking/confirm.php?ref=' . urlencode($pb['booking_ref']) . '&type=balance',
+                // Signed HMAC token prevents enumeration of booking refs on confirm.php
+                'redirect_url' => APP_URL . '/booking/confirm.php?ref=' . urlencode($pb['booking_ref'])
+                    . '&t=' . hash_hmac('sha256', $pb['booking_ref'], APP_SECRET)
+                    . '&type=balance',
                 'ask_for_shipping_address' => false,
             ],
             'pre_populated_data' => ['buyer_email' => $pb['email']],
@@ -341,11 +346,14 @@ if ($step === 'bookings' && isset($_SESSION['lookup_phone'])) {
         $bookings = array_merge($future, $past);
 
         if ($bookings) {
-            $ids = implode(',', array_column($bookings, 'id'));
-            $addon_rows = $db->query(
-                "SELECT * FROM booking_addons WHERE booking_id IN ({$ids}) ORDER BY booking_id, id"
+            // Use parameterized placeholders instead of string interpolation
+            $ids          = array_column($bookings, 'id');
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $addon_stmt   = $db->prepare(
+                "SELECT * FROM booking_addons WHERE booking_id IN ({$placeholders}) ORDER BY booking_id, id"
             );
-            foreach ($addon_rows->fetchAll() as $row) {
+            $addon_stmt->execute($ids);
+            foreach ($addon_stmt->fetchAll() as $row) {
                 $addon_map[$row['booking_id']][] = $row;
             }
         }

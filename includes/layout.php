@@ -5,6 +5,14 @@
  */
 
 function render_header(string $title, string $active_nav = ''): void {
+    // ── Security headers (must be sent before body output) ────────────────
+    // X-Frame-Options: block this page being embedded in an iframe (clickjacking).
+    header('X-Frame-Options: SAMEORIGIN');
+    // X-Content-Type-Options: prevent browsers from MIME-sniffing the response.
+    header('X-Content-Type-Options: nosniff');
+    // Referrer-Policy: only send the origin (no path) on cross-origin requests.
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+
     $app_url  = defined('APP_URL') ? APP_URL : '';
     $app_name = defined('APP_NAME') ? APP_NAME : 'Sherwood Adventure';
     ?>
@@ -70,6 +78,11 @@ function render_footer(): void {
  * Call render_admin_footer() to close.
  */
 function render_admin_header(string $title, string $active_nav = ''): void {
+    // ── Security headers ──────────────────────────────────────────────────
+    header('X-Frame-Options: SAMEORIGIN');
+    header('X-Content-Type-Options: nosniff');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+
     $app_url = defined('APP_URL') ? APP_URL : '';
     ?>
 <!DOCTYPE html>

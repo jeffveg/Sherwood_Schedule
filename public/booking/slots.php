@@ -8,6 +8,10 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/availability.php';
 require_once __DIR__ . '/../../includes/wizard.php';
 
+// Must be set before any date/strtotime calls so lead-time cutoff
+// is calculated in the business timezone, not the server default.
+date_default_timezone_set(APP_TIMEZONE);
+
 header('Content-Type: application/json');
 
 wizard_start();

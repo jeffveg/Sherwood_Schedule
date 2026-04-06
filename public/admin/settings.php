@@ -18,6 +18,7 @@ $flash_type = 'success';
 
 // ── POST Actions ───────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_verify();
     $action = $_POST['action'] ?? '';
 
     // General settings
@@ -105,6 +106,7 @@ render_admin_header('Settings', 'settings');
     <div class="admin-panel__header">General Settings</div>
     <div class="admin-panel__body">
         <form method="POST">
+            <?= csrf_field() ?>
             <input type="hidden" name="action" value="settings">
             <div class="form-row">
                 <div class="form-group">
@@ -150,6 +152,7 @@ render_admin_header('Settings', 'settings');
     </div>
     <div class="admin-panel__body">
         <form method="POST">
+            <?= csrf_field() ?>
             <input type="hidden" name="action" value="tax">
             <table class="detail-table" style="margin-bottom:1rem;">
                 <thead>
@@ -196,6 +199,7 @@ render_admin_header('Settings', 'settings');
         <!-- Separate delete forms (outside the main form) -->
         <?php foreach ($tax_rates as $t): ?>
         <form id="deleteTax<?= $t['id'] ?>" method="POST" style="display:none;">
+            <?= csrf_field() ?>
             <input type="hidden" name="action" value="delete_tax">
             <input type="hidden" name="tax_id" value="<?= $t['id'] ?>">
         </form>
@@ -208,6 +212,7 @@ render_admin_header('Settings', 'settings');
     <div class="admin-panel__header">Travel Fee Configuration</div>
     <div class="admin-panel__body">
         <form method="POST">
+            <?= csrf_field() ?>
             <input type="hidden" name="action" value="travel">
             <div class="form-group">
                 <label class="form-label">Base Address <span class="text-dim">(your Goodyear address)</span></label>

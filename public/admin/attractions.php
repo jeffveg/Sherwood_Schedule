@@ -19,6 +19,7 @@ $errors = [];
 
 // ── POST Actions ───────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_verify();
     $action = $_POST['action'] ?? '';
 
     // Save attraction details + pricing
@@ -118,6 +119,7 @@ if (isset($_GET['edit'])) {
     </div>
     <div class="admin-panel__body">
         <form method="POST">
+            <?= csrf_field() ?>
             <input type="hidden" name="action" value="save_attraction">
             <input type="hidden" name="attraction_id" value="<?= $editing['id'] ?? 0 ?>">
             <input type="hidden" name="pricing_id"    value="<?= $editing['pricing_id'] ?? 0 ?>">
@@ -234,6 +236,7 @@ if (isset($_GET['edit'])) {
                 <td class="actions">
                     <a href="?edit=<?= $a['id'] ?>" class="btn btn-ghost btn-sm">Edit</a>
                     <form method="POST" style="display:inline;">
+                        <?= csrf_field() ?>
                         <input type="hidden" name="action" value="toggle">
                         <input type="hidden" name="attraction_id" value="<?= $a['id'] ?>">
                         <button type="submit" class="btn btn-ghost btn-sm">

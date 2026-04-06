@@ -43,6 +43,7 @@ $post = $_POST;    // preserve form values on error
 
 // ── POST: create booking ───────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_verify();
     // --- Collect & validate ---
     $attraction_id  = (int)($_POST['attraction_id'] ?? 0);
     $hours          = (float)($_POST['hours'] ?? 0);
@@ -362,6 +363,7 @@ render_admin_header('New Booking', 'new-booking');
 <?php endif; ?>
 
 <form method="POST" id="new-booking-form">
+<?= csrf_field() ?>
 
 <div class="admin-detail-grid" style="gap:0 2rem;">
 <!-- ════ LEFT COLUMN ════════════════════════════════════════════════ -->

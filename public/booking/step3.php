@@ -8,6 +8,9 @@ require_once __DIR__ . '/../../includes/layout.php';
 require_once __DIR__ . '/../../includes/wizard.php';
 require_once __DIR__ . '/../../includes/availability.php';
 
+// Set before any date/strtotime calls (lead-time cutoff, slot generation)
+date_default_timezone_set(APP_TIMEZONE);
+
 wizard_start();
 wizard_require_step(3);
 

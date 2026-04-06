@@ -49,6 +49,7 @@ $errors  = [];
 
 // ── POST Actions ───────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_verify();
     $action = $_POST['action'] ?? '';
 
     // Update admin notes
@@ -506,6 +507,7 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
                         <td>
                             <?php if (!$p['square_payment_id']): ?>
                             <form method="POST" onsubmit="return confirm('Delete this payment record?');">
+                                <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="delete_payment">
                                 <input type="hidden" name="payment_id" value="<?= $p['id'] ?>">
                                 <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger);padding:2px 6px;">✕</button>
@@ -530,6 +532,7 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
                 <details class="mt-3" <?= !empty($_POST['action']) && $_POST['action'] === 'payment' ? 'open' : '' ?>>
                     <summary class="text-gold" style="cursor:pointer;font-size:0.875rem;font-weight:700;">+ Record Payment</summary>
                     <form method="POST" class="mt-2">
+                        <?= csrf_field() ?>
                         <input type="hidden" name="action" value="payment">
                         <div class="form-row" style="gap:0.5rem;">
                             <div class="form-group">
@@ -577,6 +580,7 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
             <div class="admin-panel__header">Admin Notes</div>
             <div class="admin-panel__body">
                 <form method="POST">
+                    <?= csrf_field() ?>
                     <input type="hidden" name="action" value="notes">
                     <textarea name="admin_notes" class="form-input" rows="4"
                               placeholder="Internal notes — not visible to customer"><?= htmlspecialchars($booking['admin_notes'] ?? '') ?></textarea>
@@ -590,6 +594,7 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
             <div class="admin-panel__header">Update Status</div>
             <div class="admin-panel__body">
                 <form method="POST">
+                    <?= csrf_field() ?>
                     <input type="hidden" name="action" value="status">
                     <div class="form-group">
                         <label class="form-label">Booking Status</label>
@@ -630,6 +635,7 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
             <div class="admin-panel__body">
                 <form method="POST"
                       onsubmit="return confirm('Reschedule this booking to the new date and time?')">
+                    <?= csrf_field() ?>
                     <input type="hidden" name="action" value="reschedule">
                     <div class="form-row">
                         <div class="form-group">
@@ -665,6 +671,7 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
                     <?= $booking['travel_fee_overridden'] ? '<span class="badge badge-warning">manually set</span>' : '' ?>
                 </p>
                 <form method="POST" class="d-flex gap-1 align-center">
+                    <?= csrf_field() ?>
                     <input type="hidden" name="action" value="travel_fee">
                     <input type="number" name="travel_fee" class="form-input" step="0.01" min="0"
                            value="<?= number_format($booking['travel_fee'], 2) ?>" style="max-width:140px;">
@@ -686,6 +693,7 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
                     &mdash; will be sent to <strong><?= htmlspecialchars($booking['email']) ?></strong>
                 </p>
                 <form method="POST">
+                    <?= csrf_field() ?>
                     <input type="hidden" name="action" value="resend_email">
                     <button type="submit" class="btn btn-ghost btn-sm">
                         <?= $booking['confirmation_sent'] ? 'Resend Email' : 'Send Email' ?>
@@ -712,6 +720,7 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
                     <strong><?= htmlspecialchars($booking['email']) ?></strong>.
                 </p>
                 <form method="POST">
+                    <?= csrf_field() ?>
                     <input type="hidden" name="action" value="balance_link">
                     <button type="submit" class="btn btn-primary btn-sm">Send Balance Link</button>
                 </form>

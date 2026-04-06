@@ -21,6 +21,7 @@ $all_attractions = $db->query('SELECT id, name FROM attractions WHERE active = 1
 
 // ── POST Actions ───────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_verify();
     $action = $_POST['action'] ?? '';
 
     if ($action === 'save_addon') {
@@ -109,6 +110,7 @@ render_admin_header('Add-ons', 'addons');
     </div>
     <div class="admin-panel__body">
         <form method="POST">
+            <?= csrf_field() ?>
             <input type="hidden" name="action" value="save_addon">
             <input type="hidden" name="addon_id" value="<?= $editing['id'] ?? 0 ?>">
 
@@ -250,6 +252,7 @@ render_admin_header('Add-ons', 'addons');
                 <td class="actions">
                     <a href="?edit=<?= $addon['id'] ?>" class="btn btn-ghost btn-sm">Edit</a>
                     <form method="POST" style="display:inline;">
+                        <?= csrf_field() ?>
                         <input type="hidden" name="action" value="toggle">
                         <input type="hidden" name="addon_id" value="<?= $addon['id'] ?>">
                         <button type="submit" class="btn btn-ghost btn-sm">

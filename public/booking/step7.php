@@ -11,6 +11,9 @@ require_once __DIR__ . '/../../includes/wizard.php';
 require_once __DIR__ . '/../../includes/pricing.php';
 require_once __DIR__ . '/../../includes/booking_ref.php';
 
+// Set before any date/strtotime calls (end_time calc, date formatting)
+date_default_timezone_set(APP_TIMEZONE);
+
 wizard_start();
 wizard_require_step(7);
 
@@ -26,13 +29,30 @@ $coupon_code     = wizard_get('coupon_code', '');
 
 $db = get_db();
 
-// Load pricing deps
+// ── Load pricing dependencies ─────────────────────────────────────────────
+// Fetch the active pricing row for this attraction. If missing (e.g. pricing
+// was deactivated after the customer started their session), we cannot build
+// an accurate price — redirect to step 1 rather than producing a $0 booking.
 $pricing_row = $db->prepare('SELECT * FROM attraction_pricing WHERE attraction_id = ? AND active = 1 LIMIT 1');
 $pricing_row->execute([$attraction['id']]);
 $pricing = $pricing_row->fetch();
 
-$tax_rates     = $db->query('SELECT * FROM tax_config WHERE active = 1 ORDER BY sort_order')->fetchAll();
+if (!$pricing) {
+    error_log('step7: No active pricing row found for attraction ID ' . $attraction['id'] . ' — redirecting to step1');
+    header('Location: ' . APP_URL . '/booking/step1.php');
+    exit;
+}
+
+// Active tax rates, ordered by sort_order so the breakdown is consistent.
+$tax_rates = $db->query('SELECT * FROM tax_config WHERE active = 1 ORDER BY sort_order')->fetchAll();
+
+// Travel fee config (single row). If somehow missing, fall back to safe
+// defaults so the booking can still complete — log so ops can fix the table.
 $travel_config = $db->query('SELECT * FROM travel_fee_config WHERE id = 1')->fetch();
+if (!$travel_config) {
+    error_log('step7: travel_fee_config row id=1 is missing — falling back to defaults');
+    $travel_config = ['free_miles_threshold' => 0, 'rate_per_mile' => 0.00];
+}
 
 // Build full price summary
 $summary = build_price_summary(
@@ -85,7 +105,12 @@ if (!wizard_get('booking_id')) {
         $balance_due = ($payment_option === 'full') ? 0.00
             : round($summary['grand_total'] - $summary['deposit_amount'], 2);
 
-        // Tax breakdown — split state vs city
+        // ── Tax breakdown — split into state vs city buckets ───────────────
+        // Arizona has separate state and city (municipal) tax rates.
+        // We detect which bucket a rate belongs to by inspecting its label:
+        // any rate labelled "city" or named after the city ("goodyear") goes
+        // to tax_city; everything else (state, county) goes to tax_state.
+        // Adjust the label-matching strings here if the tax_config labels change.
         $tax_state  = 0.0;
         $tax_county = 0.0;
         $tax_city   = 0.0;
@@ -208,7 +233,11 @@ if (!$error && $booking_id && !wizard_get('square_payment_url')) {
             'reference_id' => $booking_ref,
         ],
         'checkout_options' => [
-            'redirect_url'           => APP_URL . '/booking/confirm.php?ref=' . urlencode($booking_ref),
+            // The confirm token is an HMAC of the booking_ref signed with APP_SECRET.
+            // confirm.php verifies this token so that booking details are only visible
+            // to someone who received the legitimate redirect URL — not an enumerator.
+            'redirect_url' => APP_URL . '/booking/confirm.php?ref=' . urlencode($booking_ref)
+                . '&t=' . hash_hmac('sha256', $booking_ref, APP_SECRET),
             'ask_for_shipping_address' => false,
         ],
         'pre_populated_data' => [
@@ -238,8 +267,9 @@ if (!$error && $booking_id && !wizard_get('square_payment_url')) {
         $error = 'We could not connect to our payment processor. Please try again or contact us.';
         error_log('Square Payment Link error (' . $http_code . '): ' . ($curl_err ?: $response));
     } else {
+        // json_decode returns null on malformed JSON; guard before array access.
         $data = json_decode($response, true);
-        $payment_url = $data['payment_link']['url'] ?? '';
+        $payment_url = is_array($data) ? ($data['payment_link']['url'] ?? '') : '';
         if (!$payment_url) {
             $error = 'Payment link creation failed. Please try again or contact us.';
             error_log('Square Payment Link missing URL: ' . $response);

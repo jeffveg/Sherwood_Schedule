@@ -22,6 +22,7 @@ $flash = '';
 
 // ── POST: send balance reminders ──────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_reminders') {
+    csrf_verify();
     $stmt = $db->prepare(
         "SELECT b.*, a.name AS attraction_name, c.first_name, c.last_name, c.email
          FROM bookings b
@@ -176,6 +177,7 @@ render_admin_header('Dashboard', 'dashboard');
         </table>
         <form method="POST"
               onsubmit="return confirm('Send balance reminder emails to <?= count($reminder_bookings) ?> customer(s)?')">
+            <?= csrf_field() ?>
             <input type="hidden" name="action" value="send_reminders">
             <button type="submit" class="btn btn-primary btn-sm">
                 Send Reminder Emails (<?= count($reminder_bookings) ?>)

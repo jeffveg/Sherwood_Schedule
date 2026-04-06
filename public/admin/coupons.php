@@ -18,6 +18,7 @@ $errors = [];
 
 // ── POST Actions ───────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_verify();
     $action = $_POST['action'] ?? '';
 
     if ($action === 'add') {
@@ -132,6 +133,7 @@ render_admin_header('Coupons', 'coupons');
     </div>
     <div class="admin-panel__body">
         <form method="POST">
+            <?= csrf_field() ?>
             <input type="hidden" name="action" value="edit">
             <input type="hidden" name="coupon_id" value="<?= $edit_coupon['id'] ?>">
             <div class="form-row">
@@ -201,6 +203,7 @@ render_admin_header('Coupons', 'coupons');
     <div class="admin-panel__header">Add New Coupon</div>
     <div class="admin-panel__body">
         <form method="POST">
+            <?= csrf_field() ?>
             <input type="hidden" name="action" value="add">
             <div class="form-row">
                 <div class="form-group">
@@ -320,6 +323,7 @@ render_admin_header('Coupons', 'coupons');
                 <td class="actions">
                     <a href="?edit=<?= $c['id'] ?>" class="btn btn-ghost btn-sm">Edit</a>
                     <form method="POST" style="display:inline;">
+                        <?= csrf_field() ?>
                         <input type="hidden" name="action" value="toggle">
                         <input type="hidden" name="coupon_id" value="<?= $c['id'] ?>">
                         <button type="submit" class="btn btn-ghost btn-sm">
@@ -329,6 +333,7 @@ render_admin_header('Coupons', 'coupons');
                     <?php if ($c['use_count'] == 0): ?>
                     <form method="POST" style="display:inline;"
                           onsubmit="return confirm('Delete coupon <?= htmlspecialchars(addslashes($c['code'])) ?>?')">
+                        <?= csrf_field() ?>
                         <input type="hidden" name="action" value="delete">
                         <input type="hidden" name="coupon_id" value="<?= $c['id'] ?>">
                         <button type="submit" class="btn btn-danger btn-sm">Delete</button>

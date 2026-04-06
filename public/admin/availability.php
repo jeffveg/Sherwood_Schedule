@@ -20,6 +20,7 @@ $day_names = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Satur
 
 // ── POST Actions ───────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_verify();
     $action = $_POST['action'] ?? '';
 
     // Save all weekly rules at once
@@ -145,6 +146,7 @@ render_admin_header('Availability', 'availability');
             "Crosses midnight" is auto-detected when close time is earlier than open time.
         </p>
         <form method="POST">
+            <?= csrf_field() ?>
             <input type="hidden" name="action" value="save_rules">
             <table class="detail-table">
                 <thead>
@@ -226,6 +228,7 @@ render_admin_header('Availability', 'availability');
     <div class="admin-panel__header"><?= $edit_exc ? 'Edit Exception — ' . date('M j, Y', strtotime($edit_exc['exception_date'])) : 'Add Exception' ?></div>
     <div class="admin-panel__body">
         <form method="POST">
+            <?= csrf_field() ?>
             <input type="hidden" name="action" value="save_exception">
             <input type="hidden" name="exception_id" value="<?= $edit_exc['id'] ?? 0 ?>">
 
@@ -318,6 +321,7 @@ render_admin_header('Availability', 'availability');
                     <a href="?edit_exc=<?= $exc['id'] ?>" class="btn btn-ghost btn-sm">Edit</a>
                     <form method="POST" style="display:inline;"
                           onsubmit="return confirm('Delete this exception?')">
+                        <?= csrf_field() ?>
                         <input type="hidden" name="action" value="delete_exception">
                         <input type="hidden" name="exception_id" value="<?= $exc['id'] ?>">
                         <button type="submit" class="btn btn-danger btn-sm">Delete</button>

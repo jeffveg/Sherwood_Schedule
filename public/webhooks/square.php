@@ -95,60 +95,76 @@ function update_booking_payment(PDO $db, string $order_id, string $status, float
     $booking_id  = $payment['booking_id'];
     $booking_ref = $payment['booking_ref'];
 
-    // Update payment record
-    $db->prepare(
-        'UPDATE payments SET status = ?, amount = ?, paid_at = NOW() WHERE id = ?'
-    )->execute([$status, $amount, $payment['id']]);
+    // ── Wrap all DB mutations in a transaction ────────────────────────────
+    // Without this, a crash mid-way could leave the payment marked 'completed'
+    // but the booking still 'pending' (or vice versa), requiring manual cleanup.
+    $db->beginTransaction();
+    try {
+        // Update the individual payment record
+        $db->prepare(
+            'UPDATE payments SET status = ?, amount = ?, paid_at = NOW() WHERE id = ?'
+        )->execute([$status, $amount, $payment['id']]);
 
-    if ($status !== 'completed') return $booking_ref;
+        if ($status === 'completed') {
+            // Recalculate totals from ALL completed payments for this booking
+            // (handles partial deposits + balance payments correctly)
+            $sum_stmt = $db->prepare(
+                "SELECT COALESCE(SUM(CASE WHEN payment_type='refund' THEN -amount ELSE amount END), 0)
+                 FROM payments WHERE booking_id = ? AND status = 'completed'"
+            );
+            $sum_stmt->execute([$booking_id]);
+            $amount_paid = round((float)$sum_stmt->fetchColumn(), 2);
 
-    // Recalculate totals from all completed payments for this booking
-    $sum_stmt = $db->prepare(
-        "SELECT COALESCE(SUM(CASE WHEN payment_type='refund' THEN -amount ELSE amount END), 0)
-         FROM payments WHERE booking_id = ? AND status = 'completed'"
-    );
-    $sum_stmt->execute([$booking_id]);
-    $amount_paid = round((float)$sum_stmt->fetchColumn(), 2);
+            $grand_total    = (float)$payment['grand_total'];
+            $balance_due    = max(0, round($grand_total - $amount_paid, 2));
+            $payment_status = $balance_due <= 0.01 ? 'paid_in_full' : 'deposit_paid';
 
-    $grand_total = (float)$payment['grand_total'];
-    $balance_due = max(0, round($grand_total - $amount_paid, 2));
+            $db->prepare(
+                'UPDATE bookings SET payment_status = ?, amount_paid = ?, balance_due = ?,
+                 booking_status = "confirmed", updated_at = NOW()
+                 WHERE id = ?'
+            )->execute([$payment_status, $amount_paid, $balance_due, $booking_id]);
+        }
 
-    $payment_status = $balance_due <= 0.01 ? 'paid_in_full' : 'deposit_paid';
+        $db->commit();
 
-    $db->prepare(
-        'UPDATE bookings SET payment_status = ?, amount_paid = ?, balance_due = ?,
-         booking_status = "confirmed", updated_at = NOW()
-         WHERE id = ?'
-    )->execute([$payment_status, $amount_paid, $balance_due, $booking_id]);
+    } catch (Throwable $e) {
+        $db->rollBack();
+        error_log('update_booking_payment transaction failed for order ' . $order_id . ': ' . $e->getMessage());
+        return null;
+    }
 
-    // Send confirmation email (only once — check confirmation_sent flag)
-    $chk = $db->prepare('SELECT confirmation_sent, customer_id, attraction_id FROM bookings WHERE id = ?');
-    $chk->execute([$booking_id]);
-    $brow = $chk->fetch();
+    // ── Send confirmation email (outside transaction — email failure should
+    //    not roll back the already-committed payment record) ────────────────
+    if ($status === 'completed') {
+        $chk = $db->prepare('SELECT confirmation_sent, customer_id, attraction_id FROM bookings WHERE id = ?');
+        $chk->execute([$booking_id]);
+        $brow = $chk->fetch();
 
-    if ($brow && !$brow['confirmation_sent']) {
-        $bstmt = $db->prepare(
-            'SELECT b.*, a.name AS attraction_name
-             FROM bookings b JOIN attractions a ON a.id = b.attraction_id
-             WHERE b.id = ?'
-        );
-        $bstmt->execute([$booking_id]);
-        $full_booking = $bstmt->fetch();
+        if ($brow && !$brow['confirmation_sent']) {
+            $bstmt = $db->prepare(
+                'SELECT b.*, a.name AS attraction_name
+                 FROM bookings b JOIN attractions a ON a.id = b.attraction_id
+                 WHERE b.id = ?'
+            );
+            $bstmt->execute([$booking_id]);
+            $full_booking = $bstmt->fetch();
 
-        $cstmt = $db->prepare('SELECT * FROM customers WHERE id = ?');
-        $cstmt->execute([$brow['customer_id']]);
-        $customer = $cstmt->fetch();
+            $cstmt = $db->prepare('SELECT * FROM customers WHERE id = ?');
+            $cstmt->execute([$brow['customer_id']]);
+            $customer = $cstmt->fetch();
 
-        $addon_stmt = $db->prepare('SELECT * FROM booking_addons WHERE booking_id = ?');
-        $addon_stmt->execute([$booking_id]);
-        $addon_lines = $addon_stmt->fetchAll();
+            $addon_stmt = $db->prepare('SELECT * FROM booking_addons WHERE booking_id = ?');
+            $addon_stmt->execute([$booking_id]);
+            $addon_lines = $addon_stmt->fetchAll();
 
-        if ($full_booking && $customer) {
-            $sent = send_booking_confirmation($full_booking, $customer, $addon_lines, $full_booking['attraction_name']);
-            if ($sent) {
-                $db->prepare('UPDATE bookings SET confirmation_sent = 1 WHERE id = ?')->execute([$booking_id]);
+            if ($full_booking && $customer) {
+                $sent = send_booking_confirmation($full_booking, $customer, $addon_lines, $full_booking['attraction_name']);
+                if ($sent) {
+                    $db->prepare('UPDATE bookings SET confirmation_sent = 1 WHERE id = ?')->execute([$booking_id]);
+                }
+                send_admin_booking_notification($full_booking, $customer, $full_booking['attraction_name']);
             }
-            send_admin_booking_notification($full_booking, $customer, $full_booking['attraction_name']);
         }
     }
 

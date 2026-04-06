@@ -7,6 +7,10 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/availability.php';
 
+// Must be set before any date/strtotime calls so availability windows
+// are calculated in the business timezone, not the server default.
+date_default_timezone_set(APP_TIMEZONE);
+
 header('Content-Type: application/json');
 
 $month = $_GET['month'] ?? '';

@@ -14,12 +14,24 @@ wizard_start();
 
 $booking_ref = trim($_GET['ref'] ?? '');
 
+// ── Verify the signed confirm token ───────────────────────────────────────
+// The token is an HMAC-SHA256 of the booking_ref, signed with APP_SECRET.
+// Without this check, anyone who knows or guesses a booking ref (they are
+// sequential: SA-2026-001, SA-2026-002, ...) could view full customer details.
+// hash_equals() is timing-safe — prevents timing oracle attacks.
+$token_ok = false;
+if ($booking_ref && isset($_GET['t'])) {
+    $expected = hash_hmac('sha256', $booking_ref, APP_SECRET);
+    $token_ok = hash_equals($expected, (string)$_GET['t']);
+}
+
 // Load booking from DB
 $booking     = null;
 $customer    = null;
 $addon_lines = [];
 
-if ($booking_ref) {
+// Only query the DB if the token is valid — no token means no details shown.
+if ($booking_ref && $token_ok) {
     $db   = get_db();
     $stmt = $db->prepare(
         'SELECT b.*, a.name AS attraction_name, a.slug AS attraction_slug
