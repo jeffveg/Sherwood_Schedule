@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $rid    = (int)$rid;
             $open   = $opens[$i] ?? '08:00';
             $close  = $closes[$i] ?? '21:00';
-            $active = isset($actives[$i]) ? 1 : 0;
+            $active = isset($actives[$rid]) ? 1 : 0; // keyed by rule id
             $cross  = (int)($close < $open); // auto-detect midnight crossing
 
             if ($rid) {
@@ -111,12 +111,7 @@ $rules = $db->query(
     'SELECT * FROM availability_rules ORDER BY day_of_week ASC, id ASC'
 )->fetchAll();
 
-// Load upcoming exceptions (next 6 months + past 1 month)
-$exceptions = $db->prepare(
-    'SELECT * FROM availability_exceptions
-     WHERE exception_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-     ORDER BY exception_date ASC'
-)->execute() ?: [];
+// Load upcoming exceptions (past 30 days + all future)
 $stmt = $db->prepare(
     'SELECT * FROM availability_exceptions
      WHERE exception_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
