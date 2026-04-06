@@ -60,19 +60,18 @@ function update_booking_payment(PDO $db, string $order_id, string $status, float
 
     if ($status !== 'completed') return;
 
-    // Determine new payment_status for booking
-    $grand_total    = (float)$payment['grand_total'];
-    $deposit_amount = (float)$payment['deposit_amount'];
+    // Recalculate totals from all completed payments for this booking
+    $sum_stmt = $db->prepare(
+        "SELECT COALESCE(SUM(CASE WHEN payment_type='refund' THEN -amount ELSE amount END), 0)
+         FROM payments WHERE booking_id = ? AND status = 'completed'"
+    );
+    $sum_stmt->execute([$booking_id]);
+    $amount_paid = round((float)$sum_stmt->fetchColumn(), 2);
 
-    if ($payment['payment_option'] === 'full' || $amount >= $grand_total - 0.01) {
-        $payment_status = 'paid_in_full';
-        $amount_paid    = $grand_total;
-        $balance_due    = 0.00;
-    } else {
-        $payment_status = 'deposit_paid';
-        $amount_paid    = $deposit_amount;
-        $balance_due    = round($grand_total - $deposit_amount, 2);
-    }
+    $grand_total = (float)$payment['grand_total'];
+    $balance_due = max(0, round($grand_total - $amount_paid, 2));
+
+    $payment_status = $balance_due <= 0.01 ? 'paid_in_full' : 'deposit_paid';
 
     $db->prepare(
         'UPDATE bookings SET payment_status = ?, amount_paid = ?, balance_due = ?,
