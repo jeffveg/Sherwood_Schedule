@@ -432,8 +432,8 @@ render_header('My Booking', 'lookup');
         var rp  = document.getElementById('reschedule-panel-'+ bid);
         var cb  = document.getElementById('cancel-btn-'      + bid);
         var rb  = document.getElementById('reschedule-btn-'  + bid);
-        var isOpenC = cp && cp.style.display !== 'none';
-        var isOpenR = rp && rp.style.display !== 'none';
+        var isOpenC = cp && cp.style.display === 'block';
+        var isOpenR = rp && rp.style.display === 'block';
 
         if (type === 'cancel') {
             var opening = !isOpenC;
@@ -441,17 +441,13 @@ render_header('My Booking', 'lookup');
             if (rp) rp.style.display = 'none';
             if (cb) { cb.textContent = opening ? 'Hide' : 'Request Cancellation'; cb.style.opacity = opening ? '0.6' : '1'; }
             if (rb) { rb.textContent = 'Reschedule'; rb.style.opacity = '1'; }
-            if (opening && cp) cp.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         } else {
             var opening = !isOpenR;
             if (rp) rp.style.display = opening ? 'block' : 'none';
             if (cp) cp.style.display = 'none';
             if (rb) { rb.textContent = opening ? 'Hide' : 'Reschedule'; rb.style.opacity = opening ? '0.6' : '1'; }
             if (cb) { cb.textContent = 'Request Cancellation'; cb.style.opacity = '1'; }
-            if (opening) {
-                if (rp) rp.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                if (typeof window['rsInit_' + bid] === 'function') window['rsInit_' + bid]();
-            }
+            if (opening && typeof window['rsInit_' + bid] === 'function') window['rsInit_' + bid]();
         }
     }
     </script>
@@ -577,8 +573,9 @@ render_header('My Booking', 'lookup');
             </div>
 
             <!-- Cancel panel (always in DOM, hidden until toggled) -->
-            <div id="cancel-panel-<?= $b['id'] ?>" style="display:none;"
-                 class="panel mt-3" style="border:1px solid var(--orange);background:rgba(255,100,0,0.05);">
+            <div id="cancel-panel-<?= $b['id'] ?>"
+                 class="panel mt-3"
+                 style="display:none;border:1px solid var(--orange);background:rgba(255,100,0,0.05);">
                 <h4 style="color:var(--orange);margin:0 0 12px;">Request Cancellation</h4>
                 <?php if ($terms_cancel): ?>
                 <div class="text-sm text-dim mb-3"
@@ -605,8 +602,9 @@ render_header('My Booking', 'lookup');
             </div>
 
             <!-- Reschedule panel (always in DOM, hidden until toggled) -->
-            <div id="reschedule-panel-<?= $b['id'] ?>" style="display:none;"
-                 class="panel mt-3" style="border:1px solid var(--gold);background:rgba(254,214,17,0.03);">
+            <div id="reschedule-panel-<?= $b['id'] ?>"
+                 class="panel mt-3"
+                 style="display:none;border:1px solid var(--gold);background:rgba(254,214,17,0.03);">
                 <h4 style="color:var(--gold);margin:0 0 12px;">Reschedule Booking</h4>
                 <?php if ($terms_reschedule): ?>
                 <div class="text-sm text-dim mb-3"
