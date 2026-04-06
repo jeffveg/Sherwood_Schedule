@@ -113,6 +113,8 @@ function render_admin_header(string $title, string $active_nav = ''): void {
            class="<?= $active_nav === 'new-booking' ? 'active' : '' ?>">New Booking</a>
         <a href="<?= $app_url ?>/admin/calendar.php"
            class="<?= $active_nav === 'calendar' ? 'active' : '' ?>">Calendar</a>
+        <a href="<?= $app_url ?>/admin/customers.php"
+           class="<?= $active_nav === 'customers' ? 'active' : '' ?>">Customers</a>
 
         <div class="admin-sidebar__section">Catalog</div>
         <a href="<?= $app_url ?>/admin/attractions.php"
