@@ -168,11 +168,11 @@ render_admin_header('Availability', 'availability');
                     </td>
                     <td>
                         <input type="time" name="rule_open[]" class="form-input form-input--sm"
-                               value="<?= substr($rule['open_time'], 0, 5) ?>" style="width:120px;">
+                               value="<?= substr($rule['open_time'], 0, 5) ?>" style="width:145px;">
                     </td>
                     <td>
                         <input type="time" name="rule_close[]" class="form-input form-input--sm"
-                               value="<?= substr($rule['close_time'], 0, 5) ?>" style="width:120px;">
+                               value="<?= substr($rule['close_time'], 0, 5) ?>" style="width:145px;">
                     </td>
                     <td>
                         <label class="check-group" style="padding:0;">
@@ -197,8 +197,8 @@ render_admin_header('Availability', 'availability');
                             <?php endforeach; ?>
                         </select>
                     </td>
-                    <td><input type="time" name="new_open"  class="form-input form-input--sm" style="width:120px;"></td>
-                    <td><input type="time" name="new_close" class="form-input form-input--sm" style="width:120px;"></td>
+                    <td><input type="time" name="new_open"  class="form-input form-input--sm" style="width:145px;"></td>
+                    <td><input type="time" name="new_close" class="form-input form-input--sm" style="width:145px;"></td>
                     <td colspan="2"><span class="text-dim text-xs">New rule</span></td>
                 </tr>
                 </tbody>
@@ -305,7 +305,7 @@ render_admin_header('Availability', 'availability');
                         <span class="badge badge-warning">Adjusted Hours</span>
                     <?php endif; ?>
                 </td>
-                <td class="text-sm">
+                <td class="text-sm" style="white-space:nowrap;">
                     <?php if (!$exc['is_closed'] && $exc['open_time']): ?>
                         <?= date('g:i A', strtotime($exc['open_time'])) ?> – <?= date('g:i A', strtotime($exc['close_time'])) ?>
                         <?php if ($exc['crosses_midnight']): ?><span class="text-dim">(+midnight)</span><?php endif; ?>
