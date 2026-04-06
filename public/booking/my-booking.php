@@ -327,11 +327,18 @@ if ($step === 'bookings' && isset($_SESSION['lookup_phone'])) {
              FROM bookings b
              JOIN attractions a ON a.id = b.attraction_id
              WHERE b.customer_id = ?
-               AND b.booking_status NOT IN ('cancelled','rescheduled')
-             ORDER BY b.event_date DESC"
+               AND b.booking_status NOT IN ('cancelled','rescheduled')"
         );
         $bstmt->execute([$customer['id']]);
-        $bookings = $bstmt->fetchAll();
+        $all = $bstmt->fetchAll();
+
+        // Upcoming: soonest first. Past: most recent first, appended at bottom.
+        $today_str = date('Y-m-d');
+        $future = array_values(array_filter($all, fn($r) => $r['event_date'] >= $today_str));
+        $past   = array_values(array_filter($all, fn($r) => $r['event_date'] <  $today_str));
+        usort($future, fn($a, $b) => strcmp($a['event_date'], $b['event_date']));
+        usort($past,   fn($a, $b) => strcmp($b['event_date'], $a['event_date']));
+        $bookings = array_merge($future, $past);
 
         if ($bookings) {
             $ids = implode(',', array_column($bookings, 'id'));
@@ -525,14 +532,19 @@ render_header('My Booking', 'lookup');
 
             <?php if (!$is_past): ?>
             <!-- Cancel / Reschedule actions -->
+            <?php
+            $cancel_open    = ($show_panel === 'cancel'    && $panel_bid === (int)$b['id']);
+            $reschedule_open = ($show_panel === 'reschedule' && $panel_bid === (int)$b['id']);
+            ?>
             <div class="d-flex gap-2 mt-3" style="border-top:1px solid rgba(255,255,255,0.1);padding-top:0.75rem;">
-                <a href="?show=cancel&bid=<?= $b['id'] ?>#panel-<?= $b['id'] ?>"
-                   class="btn btn-ghost btn-sm" style="color:var(--orange);flex:1;text-align:center;">
-                    Request Cancellation
+                <a href="<?= $cancel_open    ? '?' : '?show=cancel&bid='    . $b['id'] . '#panel-' . $b['id'] ?>"
+                   class="btn btn-sm <?= $cancel_open    ? 'btn-ghost' : 'btn-ghost' ?>"
+                   style="color:var(--orange);flex:1;text-align:center;<?= $cancel_open    ? 'opacity:0.5;' : '' ?>">
+                    <?= $cancel_open ? 'Hide' : 'Request Cancellation' ?>
                 </a>
-                <a href="?show=reschedule&bid=<?= $b['id'] ?>#panel-<?= $b['id'] ?>"
-                   class="btn btn-ghost btn-sm" style="flex:1;text-align:center;">
-                    Reschedule
+                <a href="<?= $reschedule_open ? '?' : '?show=reschedule&bid=' . $b['id'] . '#panel-' . $b['id'] ?>"
+                   class="btn btn-ghost btn-sm" style="flex:1;text-align:center;<?= $reschedule_open ? 'opacity:0.5;' : '' ?>">
+                    <?= $reschedule_open ? 'Hide' : 'Reschedule' ?>
                 </a>
             </div>
             <div id="panel-<?= $b['id'] ?>"></div>
