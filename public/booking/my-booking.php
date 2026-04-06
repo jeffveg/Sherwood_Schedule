@@ -30,11 +30,9 @@ $error   = '';
 $phone   = '';
 
 // Panel/action state
-$show_panel       = $_GET['show'] ?? '';
-$panel_bid        = (int)($_GET['bid'] ?? 0);
-$reschedule_slots = [];
-$reschedule_date  = '';
-$success_msg      = '';
+$show_panel  = $_GET['show'] ?? '';
+$panel_bid   = (int)($_GET['bid'] ?? 0);
+$success_msg = '';
 
 // ── POST: send code ───────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_code') {
@@ -213,41 +211,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cance
         $success_msg = 'Your cancellation request has been submitted. We\'ll be in touch within 1 business day to confirm and process any applicable refund.';
     }
     $step = 'bookings';
-}
-
-// ── POST: reschedule — check available slots (self-serve) ─────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'reschedule_date'
-    && isset($_SESSION['lookup_phone']) && !isset($_SESSION['lookup_code'])) {
-
-    $booking_id = (int)($_POST['booking_id'] ?? 0);
-    $req_date   = trim($_POST['reschedule_date'] ?? '');
-    $db    = get_db();
-    $clean = $_SESSION['lookup_phone'];
-
-    $vstmt = $db->prepare(
-        'SELECT b.id FROM bookings b
-         JOIN customers c ON c.id = b.customer_id
-         WHERE b.id = ? AND REGEXP_REPLACE(c.phone, "[^0-9]", "") LIKE ?
-           AND b.booking_status NOT IN (\'cancelled\',\'rescheduled\')'
-    );
-    $vstmt->execute([$booking_id, '%' . $clean]);
-    $rb = $vstmt->fetch();
-
-    if ($rb && preg_match('/^\d{4}-\d{2}-\d{2}$/', $req_date)) {
-        $slots = get_available_slots($req_date);
-        if ($slots) {
-            $reschedule_slots = $slots;
-            $reschedule_date  = $req_date;
-        } else {
-            $error           = 'No available times on ' . date('l, F j, Y', strtotime($req_date)) . '. Please choose another date.';
-            $reschedule_date = $req_date;
-        }
-    } else {
-        $error = 'Invalid date selected.';
-    }
-    $show_panel = 'reschedule';
-    $panel_bid  = $booking_id;
-    $step       = 'bookings';
 }
 
 // ── POST: reschedule — confirm new date/time (self-serve) ─────────────────
@@ -639,42 +602,205 @@ render_header('My Booking', 'lookup');
                 </form>
 
                 <?php else: ?>
-                <!-- Self-serve reschedule: more than 14 days out -->
-                <form method="POST">
-                    <input type="hidden" name="action" value="reschedule_date">
+                <!-- Self-serve reschedule: more than 14 days out — full calendar UI -->
+                <?php $rs_min_date = date('Y-m-d', strtotime('+' . CANCELLATION_DAYS . ' days')); ?>
+                <form method="POST" id="reschedule-form-<?= $b['id'] ?>">
+                    <input type="hidden" name="action"     value="reschedule_confirm">
                     <input type="hidden" name="booking_id" value="<?= $b['id'] ?>">
-                    <div class="form-group">
-                        <label class="form-label">Select New Date</label>
-                        <input type="date" name="reschedule_date" class="form-input"
-                               min="<?= date('Y-m-d', strtotime('+' . CANCELLATION_DAYS . ' days')) ?>"
-                               value="<?= ($reschedule_date && $panel_bid === (int)$b['id']) ? h($reschedule_date) : '' ?>">
+                    <input type="hidden" name="new_date"   id="rs-date-input-<?= $b['id'] ?>" value="">
+                    <input type="hidden" name="new_time"   id="rs-time-input-<?= $b['id'] ?>" value="">
+
+                    <!-- Calendar -->
+                    <div class="calendar-wrapper">
+                        <div class="calendar-header">
+                            <button type="button" class="cal-nav" id="rs-cal-prev-<?= $b['id'] ?>">&#8249;</button>
+                            <h3 id="rs-cal-label-<?= $b['id'] ?>"></h3>
+                            <button type="button" class="cal-nav" id="rs-cal-next-<?= $b['id'] ?>">&#8250;</button>
+                        </div>
+                        <div class="calendar-grid" id="rs-cal-grid-<?= $b['id'] ?>">
+                            <?php foreach (['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] as $dn): ?>
+                            <div class="cal-day-name"><?= $dn ?></div>
+                            <?php endforeach; ?>
+                        </div>
+                        <div id="rs-cal-loading-<?= $b['id'] ?>" class="spinner" style="display:none;"></div>
                     </div>
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-secondary btn-sm">Check Availability</button>
+
+                    <!-- Selected date label -->
+                    <div id="rs-date-display-<?= $b['id'] ?>" class="text-center mb-2" style="display:none;">
+                        <span class="text-gold" style="font-family:var(--font-heading);font-size:1.1rem;"
+                              id="rs-date-text-<?= $b['id'] ?>"></span>
+                    </div>
+
+                    <!-- Time slots -->
+                    <div id="rs-slots-section-<?= $b['id'] ?>" style="display:none;">
+                        <p class="text-dim text-sm text-center mb-2">Select a start time:</p>
+                        <div id="rs-slots-loading-<?= $b['id'] ?>" class="spinner" style="display:none;"></div>
+                        <div class="time-slots" id="rs-slots-grid-<?= $b['id'] ?>"></div>
+                        <div id="rs-slots-none-<?= $b['id'] ?>" class="text-center text-dim text-sm" style="display:none;">
+                            No times available on this date. Please choose another day.
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary btn-sm"
+                                id="rs-confirm-btn-<?= $b['id'] ?>" disabled>
+                            Confirm Reschedule
+                        </button>
                         <a href="?" class="btn btn-ghost btn-sm">Back</a>
                     </div>
                 </form>
 
-                <?php if ($reschedule_slots && $panel_bid === (int)$b['id']): ?>
-                <hr class="price-divider">
-                <p class="text-sm mb-2">
-                    <strong>Available times on <?= date('l, F j, Y', strtotime($reschedule_date)) ?>:</strong>
-                </p>
-                <form method="POST">
-                    <input type="hidden" name="action" value="reschedule_confirm">
-                    <input type="hidden" name="booking_id" value="<?= $b['id'] ?>">
-                    <input type="hidden" name="new_date" value="<?= h($reschedule_date) ?>">
-                    <div class="form-group">
-                        <label class="form-label">Select Time</label>
-                        <select name="new_time" class="form-input">
-                            <?php foreach ($reschedule_slots as $slot): ?>
-                            <option value="<?= h($slot) ?>"><?= date('g:i A', strtotime($slot)) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-sm">Confirm Reschedule</button>
-                </form>
-                <?php endif; ?>
+                <!-- Calendar legend -->
+                <div class="d-flex gap-2 flex-wrap mt-2" style="font-size:0.78rem;justify-content:center;">
+                    <span><span style="display:inline-block;width:12px;height:12px;background:var(--gold);border-radius:3px;margin-right:4px;vertical-align:middle;"></span>Selected</span>
+                    <span style="color:#c0392b"><span style="display:inline-block;width:12px;height:12px;background:rgba(192,57,43,0.2);border-radius:3px;margin-right:4px;vertical-align:middle;"></span>Not available</span>
+                    <span style="color:#555"><span style="display:inline-block;width:12px;height:12px;background:#333;border-radius:3px;margin-right:4px;vertical-align:middle;"></span>Past</span>
+                </div>
+
+                <script>
+                (function () {
+                    const BID    = <?= (int)$b['id'] ?>;
+                    const APP_URL = <?= json_encode(APP_URL) ?>;
+                    const minDate = <?= json_encode($rs_min_date) ?>;
+                    const today   = <?= json_encode(date('Y-m-d')) ?>;
+                    const monthNames = ['January','February','March','April','May','June',
+                                        'July','August','September','October','November','December'];
+
+                    const minParts   = minDate.split('-');
+                    let currentYear  = parseInt(minParts[0]);
+                    let currentMonth = parseInt(minParts[1]) - 1;
+                    let dayStatus    = {};
+                    let selectedDate = '';
+                    let selectedTime = '';
+                    let fetching     = false;
+
+                    const calGrid      = document.getElementById('rs-cal-grid-'     + BID);
+                    const calLabel     = document.getElementById('rs-cal-label-'    + BID);
+                    const calLoading   = document.getElementById('rs-cal-loading-'  + BID);
+                    const btnPrev      = document.getElementById('rs-cal-prev-'     + BID);
+                    const btnNext      = document.getElementById('rs-cal-next-'     + BID);
+                    const slotsSection = document.getElementById('rs-slots-section-'+ BID);
+                    const slotsGrid    = document.getElementById('rs-slots-grid-'   + BID);
+                    const slotsLoad    = document.getElementById('rs-slots-loading-'+ BID);
+                    const slotsNone    = document.getElementById('rs-slots-none-'   + BID);
+                    const dateInput    = document.getElementById('rs-date-input-'   + BID);
+                    const timeInput    = document.getElementById('rs-time-input-'   + BID);
+                    const confirmBtn   = document.getElementById('rs-confirm-btn-'  + BID);
+                    const dateDisplay  = document.getElementById('rs-date-display-' + BID);
+                    const dateText     = document.getElementById('rs-date-text-'    + BID);
+
+                    function isoDate(y, m, d) {
+                        return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+                    }
+
+                    function renderCalendar() {
+                        calLabel.textContent = monthNames[currentMonth] + ' ' + currentYear;
+                        btnPrev.disabled = (currentYear === parseInt(minParts[0]) && currentMonth === parseInt(minParts[1]) - 1);
+                        calGrid.querySelectorAll('.cal-day, .cal-empty').forEach(c => c.remove());
+
+                        const firstDow = new Date(currentYear, currentMonth, 1).getDay();
+                        const daysIn   = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+                        for (let i = 0; i < firstDow; i++) {
+                            const e = document.createElement('div');
+                            e.className = 'cal-day empty';
+                            calGrid.appendChild(e);
+                        }
+                        for (let d = 1; d <= daysIn; d++) {
+                            const dateStr = isoDate(currentYear, currentMonth, d);
+                            const status  = dayStatus[dateStr] || 'closed';
+                            const cell    = document.createElement('button');
+                            cell.type = 'button';
+                            cell.textContent = d;
+                            let cls = 'cal-day';
+                            if (dateStr === today)        cls += ' today';
+                            if (dateStr === selectedDate) cls += ' selected';
+                            if (status === 'past' || status === 'soon') cls += ' past';
+                            else if (status === 'closed') cls += ' unavailable';
+                            cell.className = cls;
+                            if (status === 'available') {
+                                cell.addEventListener('click', () => selectDate(dateStr));
+                            }
+                            calGrid.appendChild(cell);
+                        }
+                    }
+
+                    function yearMonth() {
+                        return currentYear + '-' + String(currentMonth + 1).padStart(2, '0');
+                    }
+
+                    function fetchMonth(ym) {
+                        if (fetching) return;
+                        fetching = true;
+                        calLoading.style.display = 'block';
+                        fetch(APP_URL + '/booking/calendar.php?month=' + ym)
+                            .then(r => r.json())
+                            .then(data => { dayStatus = data.days || {}; renderCalendar(); })
+                            .catch(() => { dayStatus = {}; renderCalendar(); })
+                            .finally(() => { fetching = false; calLoading.style.display = 'none'; });
+                    }
+
+                    function selectDate(date) {
+                        selectedDate = date;
+                        selectedTime = '';
+                        dateInput.value = date;
+                        timeInput.value = '';
+                        confirmBtn.disabled = true;
+                        const parts = date.split('-');
+                        const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                        dateText.textContent = d.toLocaleDateString('en-US', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+                        dateDisplay.style.display = 'block';
+                        renderCalendar();
+                        fetchSlots(date);
+                    }
+
+                    function fetchSlots(date) {
+                        slotsSection.style.display = 'block';
+                        slotsLoad.style.display    = 'block';
+                        slotsGrid.innerHTML        = '';
+                        slotsNone.style.display    = 'none';
+                        fetch(APP_URL + '/booking/slots.php?date=' + date)
+                            .then(r => r.json())
+                            .then(data => {
+                                slotsLoad.style.display = 'none';
+                                const slots = data.slots || [];
+                                if (!slots.length) { slotsNone.style.display = 'block'; return; }
+                                slots.forEach(slot => {
+                                    const btn = document.createElement('button');
+                                    btn.type = 'button';
+                                    btn.className = 'time-slot';
+                                    btn.textContent = slot.display;
+                                    btn.dataset.value = slot.value;
+                                    btn.addEventListener('click', () => selectTime(slot.value));
+                                    slotsGrid.appendChild(btn);
+                                });
+                            })
+                            .catch(() => { slotsLoad.style.display = 'none'; slotsNone.style.display = 'block'; });
+                    }
+
+                    function selectTime(value) {
+                        selectedTime = value;
+                        timeInput.value = value;
+                        confirmBtn.disabled = false;
+                        slotsGrid.querySelectorAll('.time-slot').forEach(b => {
+                            b.classList.toggle('selected', b.dataset.value === value);
+                        });
+                    }
+
+                    btnPrev.addEventListener('click', () => {
+                        currentMonth--;
+                        if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+                        fetchMonth(yearMonth());
+                    });
+                    btnNext.addEventListener('click', () => {
+                        currentMonth++;
+                        if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+                        fetchMonth(yearMonth());
+                    });
+
+                    fetchMonth(yearMonth());
+                })();
+                </script>
 
                 <?php endif; // $within_window ?>
             </div>
