@@ -62,14 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     elseif ($action === 'delete') {
         $cid = (int)($_POST['coupon_id'] ?? 0);
-        // Safety: don't delete if it has been used
-        $used = $db->prepare('SELECT use_count FROM coupons WHERE id = ?');
-        $used->execute([$cid]);
-        $row = $used->fetch();
-        if ($row && $row['use_count'] > 0) {
-            $flash = 'Cannot delete a coupon that has been used. Deactivate it instead.';
-            $flash_type = 'warning';
-        } else {
+        if ($cid) {
             $db->prepare('DELETE FROM coupons WHERE id = ?')->execute([$cid]);
             $flash = 'Coupon deleted.';
         }
@@ -327,14 +320,14 @@ render_admin_header('Coupons', 'coupons');
                             <?= $c['active'] ? 'Disable' : 'Enable' ?>
                         </button>
                     </form>
-                    <?php if ($c['use_count'] == 0): ?>
                     <form method="POST" style="display:inline;"
-                          onsubmit="return confirm('Delete coupon <?= htmlspecialchars(addslashes($c['code'])) ?>?')">
+                          onsubmit="return confirm('<?= $c['use_count'] > 0
+                              ? 'This coupon has been used ' . $c['use_count'] . ' time(s). Deleting it will remove it from the coupon list but existing booking records will retain the discount. Delete anyway?'
+                              : 'Delete coupon ' . htmlspecialchars(addslashes($c['code'])) . '?' ?>")">
                         <input type="hidden" name="action" value="delete">
                         <input type="hidden" name="coupon_id" value="<?= $c['id'] ?>">
                         <button type="submit" class="btn btn-danger btn-sm">Delete</button>
                     </form>
-                    <?php endif; ?>
                 </td>
             </tr>
         <?php endforeach; ?>
