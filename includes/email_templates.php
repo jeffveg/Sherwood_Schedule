@@ -198,6 +198,56 @@ function send_balance_payment_link(array $booking, array $customer, string $attr
 }
 
 /**
+ * Send a balance due reminder email to the customer.
+ * Directs them to the My Booking page to pay online.
+ */
+function send_balance_reminder(array $booking, array $customer, string $attraction_name): bool {
+    require_once __DIR__ . '/mailer.php';
+
+    $ref        = $booking['booking_ref'];
+    $event_date = date('l, F j, Y', strtotime($booking['event_date']));
+    $balance    = number_format($booking['balance_due'], 2);
+    $days_until = (int)floor((strtotime($booking['event_date'] . ' midnight') - strtotime('today midnight')) / 86400);
+    $days_label = $days_until === 1 ? '1 day' : "{$days_until} days";
+
+    $subject = "Balance Due Reminder — {$ref} — {$attraction_name} on {$event_date}";
+
+    $html = email_wrapper("Balance Payment Reminder", "
+        <p style='font-size:16px;margin:0 0 20px;'>
+            Hi {$customer['first_name']}, your Sherwood Adventure event is coming up in
+            <strong style='color:#fed611;'>{$days_label}</strong> and you have an outstanding
+            balance of <strong style='color:#ffa133;'>\${$balance}</strong>.
+        </p>
+
+        " . email_section("Event Details", "
+            " . email_detail_row('Booking Ref', $ref) . "
+            " . email_detail_row('Activity', htmlspecialchars($attraction_name)) . "
+            " . email_detail_row('Event Date', $event_date) . "
+            " . email_detail_row('Balance Due', '$' . $balance) . "
+        ") . "
+
+        <p style='text-align:center;margin:28px 0;'>
+            <a href='" . APP_URL . "/booking/my-booking.php'
+               style='background:#fed611;color:#111;padding:14px 32px;border-radius:8px;
+                      text-decoration:none;font-weight:700;font-size:16px;display:inline-block;'>
+                Pay My Balance
+            </a>
+        </p>
+
+        <p style='font-size:13px;color:#a0a0a0;margin:0 0 8px;'>
+            Log in with your phone number to view your booking and pay securely online.
+        </p>
+        <p style='font-size:13px;color:#a0a0a0;margin:0;'>
+            Questions? Reply to this email or visit
+            <a href='https://sherwoodadventure.com/contact-us.html' style='color:#fed611;'>our contact page</a>.
+        </p>
+    ");
+
+    $to = $customer['first_name'] . ' ' . $customer['last_name'] . ' <' . $customer['email'] . '>';
+    return send_email($to, $subject, $html, [], SMTP_USER);
+}
+
+/**
  * Send admin-only notification when a new booking is created.
  */
 function send_admin_booking_notification(array $booking, array $customer, string $attraction_name): bool {
