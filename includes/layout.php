@@ -34,7 +34,7 @@ function render_header(string $title, string $active_nav = ''): void {
             <nav class="site-nav">
                 <a href="<?= $app_url ?>/"
                    class="<?= $active_nav === 'book' ? 'active' : '' ?>">Book Now</a>
-                <a href="<?= $app_url ?>/booking/lookup.php"
+                <a href="<?= $app_url ?>/booking/my-booking.php"
                    class="<?= $active_nav === 'lookup' ? 'active' : '' ?>">My Booking</a>
                 <a href="https://sherwoodadventure.com" target="_blank" rel="noopener">Main Site</a>
             </nav>
