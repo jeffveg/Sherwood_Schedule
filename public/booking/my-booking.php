@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/layout.php';
 require_once __DIR__ . '/../../includes/sms.php';
+require_once __DIR__ . '/../../includes/email_templates.php';
 
 session_start();
 
@@ -81,6 +82,92 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'v
 
 // ── GET: already verified this session ───────────────────────────────────
 elseif (isset($_SESSION['lookup_phone']) && !isset($_SESSION['lookup_code'])) {
+    $step = 'bookings';
+}
+
+// ── POST: generate pay-balance Square link ────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay_balance'
+    && isset($_SESSION['lookup_phone'])) {
+
+    $booking_id = (int)($_POST['booking_id'] ?? 0);
+    $db = get_db();
+
+    // Verify this booking belongs to the verified customer
+    $clean = $_SESSION['lookup_phone'];
+    $vstmt = $db->prepare(
+        'SELECT b.*, a.name AS attraction_name, c.email
+         FROM bookings b
+         JOIN attractions a ON a.id = b.attraction_id
+         JOIN customers c ON c.id = b.customer_id
+         WHERE b.id = ? AND REGEXP_REPLACE(c.phone, "[^0-9]", "") LIKE ?
+           AND b.balance_due > 0'
+    );
+    $vstmt->execute([$booking_id, '%' . $clean]);
+    $pb = $vstmt->fetch();
+
+    if ($pb) {
+        $square_base  = SQUARE_ENVIRONMENT === 'production'
+            ? 'https://connect.squareup.com'
+            : 'https://connect.squareupsandbox.com';
+
+        $amount_cents = (int)round($pb['balance_due'] * 100);
+        $description  = $pb['attraction_name'] . ' — Balance — ' . date('M j, Y', strtotime($pb['event_date']));
+
+        $payload = [
+            'idempotency_key'   => 'cust-bal-' . $pb['booking_ref'] . '-' . time(),
+            'order'             => [
+                'location_id' => SQUARE_LOCATION_ID,
+                'line_items'  => [[
+                    'name'             => $description,
+                    'quantity'         => '1',
+                    'base_price_money' => ['amount' => $amount_cents, 'currency' => 'USD'],
+                ]],
+                'reference_id' => $pb['booking_ref'],
+            ],
+            'checkout_options'  => [
+                'redirect_url'             => APP_URL . '/booking/confirm.php?ref=' . urlencode($pb['booking_ref']) . '&type=balance',
+                'ask_for_shipping_address' => false,
+            ],
+            'pre_populated_data' => ['buyer_email' => $pb['email']],
+        ];
+
+        $ch = curl_init($square_base . '/v2/online-checkout/payment-links');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_HTTPHEADER     => [
+                'Square-Version: 2024-01-17',
+                'Authorization: Bearer ' . SQUARE_ACCESS_TOKEN,
+                'Content-Type: application/json',
+            ],
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_TIMEOUT    => 15,
+        ]);
+        $response  = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        $data        = json_decode($response, true);
+        $payment_url = $data['payment_link']['url'] ?? '';
+
+        if ($payment_url) {
+            $db->prepare(
+                'INSERT INTO payments (booking_id, payment_type, amount, payment_method,
+                 square_payment_link_id, square_order_id, status)
+                 VALUES (?, "balance", ?, "square_online", ?, ?, "pending")'
+            )->execute([
+                $booking_id, $pb['balance_due'],
+                $data['payment_link']['id']       ?? null,
+                $data['payment_link']['order_id'] ?? null,
+            ]);
+
+            header('Location: ' . $payment_url);
+            exit;
+        } else {
+            $error = 'Could not create a payment link. Please contact us to arrange payment.';
+            error_log('My Booking Square link error (' . $http_code . '): ' . $response);
+        }
+    }
     $step = 'bookings';
 }
 
@@ -276,9 +363,13 @@ render_header('My Booking', 'book');
                 <span class="price-line__label"><strong>Balance Due</strong></span>
                 <span><strong>$<?= number_format($b['balance_due'], 2) ?></strong></span>
             </div>
-            <p class="text-sm text-dim mt-2">
-                Balance is due before your event. Contact us if you need to arrange payment.
-            </p>
+            <form method="POST" class="mt-3">
+                <input type="hidden" name="action" value="pay_balance">
+                <input type="hidden" name="booking_id" value="<?= $b['id'] ?>">
+                <button type="submit" class="btn btn-primary btn-block">
+                    Pay Balance — $<?= number_format($b['balance_due'], 2) ?>
+                </button>
+            </form>
             <?php endif; ?>
         </div>
         <?php endforeach; ?>
