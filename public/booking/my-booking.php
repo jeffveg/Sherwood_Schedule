@@ -3,27 +3,44 @@
  * My Booking — customer lookup by phone with SMS verification.
  * Step 1: enter phone → send 6-digit code via OpenPhone
  * Step 2: enter code → show booking(s)
+ * Step 3: view bookings, pay balance, cancel/reschedule
  */
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/layout.php';
 require_once __DIR__ . '/../../includes/sms.php';
 require_once __DIR__ . '/../../includes/email_templates.php';
+require_once __DIR__ . '/../../includes/availability.php';
 
 session_start();
 
-$CODE_TTL    = 600; // 10 minutes
+// ── Logout (must be before any output) ────────────────────────────────────
+if (isset($_GET['logout'])) {
+    unset($_SESSION['lookup_phone'], $_SESSION['lookup_code'],
+          $_SESSION['lookup_expires'], $_SESSION['lookup_attempts']);
+    header('Location: ' . APP_URL . '/booking/my-booking.php');
+    exit;
+}
+
+$CODE_TTL     = 600; // 10 minutes
 $MAX_ATTEMPTS = 5;
 
-$step    = 'phone';   // phone | code | bookings
+$step    = 'phone';
 $error   = '';
 $phone   = '';
 
+// Panel/action state
+$show_panel       = $_GET['show'] ?? '';
+$panel_bid        = (int)($_GET['bid'] ?? 0);
+$reschedule_slots = [];
+$reschedule_date  = '';
+$success_msg      = '';
+
 // ── POST: send code ───────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_code') {
-    $raw   = trim($_POST['phone'] ?? '');
-    $clean = preg_replace('/\D/', '', $raw);
-    $last10 = substr($clean, -10); // always compare last 10 digits
+    $raw    = trim($_POST['phone'] ?? '');
+    $clean  = preg_replace('/\D/', '', $raw);
+    $last10 = substr($clean, -10);
 
     $db   = get_db();
     $stmt = $db->prepare(
@@ -36,8 +53,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_
         $error = 'No bookings found for that phone number.';
         $step  = 'phone';
     } else {
-        $code    = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        $sent    = send_sms($raw, "Your Sherwood Adventure verification code is: {$code}. It expires in 10 minutes.");
+        $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $sent = send_sms($raw, "Your Sherwood Adventure verification code is: {$code}. It expires in 10 minutes.");
 
         if (!$sent) {
             $error = 'Could not send verification code. Please try again or contact us.';
@@ -47,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_
             $_SESSION['lookup_code']     = $code;
             $_SESSION['lookup_expires']  = time() + $CODE_TTL;
             $_SESSION['lookup_attempts'] = 0;
-            $step = 'code';
+            $step  = 'code';
             $phone = $raw;
         }
     }
@@ -74,7 +91,6 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'v
         $error = 'Incorrect code. Please try again.';
         $step  = 'code';
     } else {
-        // Code correct — load bookings
         unset($_SESSION['lookup_code'], $_SESSION['lookup_expires'], $_SESSION['lookup_attempts']);
         $step = 'bookings';
     }
@@ -92,7 +108,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay_b
     $booking_id = (int)($_POST['booking_id'] ?? 0);
     $db = get_db();
 
-    // Verify this booking belongs to the verified customer
     $clean = $_SESSION['lookup_phone'];
     $vstmt = $db->prepare(
         'SELECT b.*, a.name AS attraction_name, c.email
@@ -171,10 +186,167 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay_b
     $step = 'bookings';
 }
 
+// ── POST: cancel request ──────────────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'cancel_request'
+    && isset($_SESSION['lookup_phone']) && !isset($_SESSION['lookup_code'])) {
+
+    $booking_id = (int)($_POST['booking_id'] ?? 0);
+    $db    = get_db();
+    $clean = $_SESSION['lookup_phone'];
+
+    $vstmt = $db->prepare(
+        'SELECT b.id, b.booking_ref, b.event_date, b.start_time, b.grand_total, b.amount_paid,
+                a.name AS attraction_name,
+                c.first_name, c.last_name, c.email, c.phone
+         FROM bookings b
+         JOIN attractions a ON a.id = b.attraction_id
+         JOIN customers c ON c.id = b.customer_id
+         WHERE b.id = ? AND REGEXP_REPLACE(c.phone, "[^0-9]", "") LIKE ?
+           AND b.booking_status NOT IN (\'cancelled\',\'rescheduled\')
+           AND b.event_date >= CURDATE()'
+    );
+    $vstmt->execute([$booking_id, '%' . $clean]);
+    $cb = $vstmt->fetch();
+
+    if ($cb) {
+        send_cancel_request_notification($cb, $cb['attraction_name']);
+        $success_msg = 'Your cancellation request has been submitted. We\'ll be in touch within 1 business day to confirm and process any applicable refund.';
+    }
+    $step = 'bookings';
+}
+
+// ── POST: reschedule — check available slots (self-serve) ─────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'reschedule_date'
+    && isset($_SESSION['lookup_phone']) && !isset($_SESSION['lookup_code'])) {
+
+    $booking_id = (int)($_POST['booking_id'] ?? 0);
+    $req_date   = trim($_POST['reschedule_date'] ?? '');
+    $db    = get_db();
+    $clean = $_SESSION['lookup_phone'];
+
+    $vstmt = $db->prepare(
+        'SELECT b.id FROM bookings b
+         JOIN customers c ON c.id = b.customer_id
+         WHERE b.id = ? AND REGEXP_REPLACE(c.phone, "[^0-9]", "") LIKE ?
+           AND b.booking_status NOT IN (\'cancelled\',\'rescheduled\')'
+    );
+    $vstmt->execute([$booking_id, '%' . $clean]);
+    $rb = $vstmt->fetch();
+
+    if ($rb && preg_match('/^\d{4}-\d{2}-\d{2}$/', $req_date)) {
+        $slots = get_available_slots($req_date);
+        if ($slots) {
+            $reschedule_slots = $slots;
+            $reschedule_date  = $req_date;
+        } else {
+            $error           = 'No available times on ' . date('l, F j, Y', strtotime($req_date)) . '. Please choose another date.';
+            $reschedule_date = $req_date;
+        }
+    } else {
+        $error = 'Invalid date selected.';
+    }
+    $show_panel = 'reschedule';
+    $panel_bid  = $booking_id;
+    $step       = 'bookings';
+}
+
+// ── POST: reschedule — confirm new date/time (self-serve) ─────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'reschedule_confirm'
+    && isset($_SESSION['lookup_phone']) && !isset($_SESSION['lookup_code'])) {
+
+    $booking_id = (int)($_POST['booking_id'] ?? 0);
+    $new_date   = trim($_POST['new_date'] ?? '');
+    $new_time   = trim($_POST['new_time'] ?? '');
+    $db    = get_db();
+    $clean = $_SESSION['lookup_phone'];
+
+    $vstmt = $db->prepare(
+        'SELECT b.id, b.customer_id, b.booking_ref, b.duration_hours,
+                a.name AS attraction_name
+         FROM bookings b
+         JOIN attractions a ON a.id = b.attraction_id
+         JOIN customers c ON c.id = b.customer_id
+         WHERE b.id = ? AND REGEXP_REPLACE(c.phone, "[^0-9]", "") LIKE ?
+           AND b.booking_status NOT IN (\'cancelled\',\'rescheduled\')'
+    );
+    $vstmt->execute([$booking_id, '%' . $clean]);
+    $rb = $vstmt->fetch();
+
+    if ($rb && preg_match('/^\d{4}-\d{2}-\d{2}$/', $new_date) && preg_match('/^\d{2}:\d{2}$/', $new_time)) {
+        $days_until = (int)floor((strtotime($new_date . ' midnight') - strtotime('today midnight')) / 86400);
+        $slots      = get_available_slots($new_date);
+
+        if ($days_until >= CANCELLATION_DAYS && in_array($new_time, $slots)) {
+            $db->prepare(
+                'UPDATE bookings SET event_date = ?, start_time = ?, updated_at = NOW() WHERE id = ?'
+            )->execute([$new_date, $new_time . ':00', $booking_id]);
+
+            $bstmt = $db->prepare(
+                'SELECT b.*, a.name AS attraction_name
+                 FROM bookings b JOIN attractions a ON a.id = b.attraction_id
+                 WHERE b.id = ?'
+            );
+            $bstmt->execute([$booking_id]);
+            $updated_booking = $bstmt->fetch();
+
+            $cstmt = $db->prepare('SELECT * FROM customers WHERE id = ?');
+            $cstmt->execute([$rb['customer_id']]);
+            $updated_customer = $cstmt->fetch();
+
+            if ($updated_booking && $updated_customer) {
+                send_reschedule_confirmation($updated_booking, $updated_customer, $rb['attraction_name']);
+                send_admin_reschedule_notification($updated_booking, $updated_customer, $rb['attraction_name']);
+            }
+
+            $success_msg = 'Your booking has been rescheduled to '
+                . date('l, F j, Y', strtotime($new_date)) . ' at '
+                . date('g:i A', strtotime($new_time))
+                . '. A confirmation has been sent to your email.';
+        } else {
+            $error      = 'That time slot is no longer available. Please pick a different date or time.';
+            $show_panel = 'reschedule';
+            $panel_bid  = $booking_id;
+        }
+    }
+    $step = 'bookings';
+}
+
+// ── POST: reschedule request (within 14-day window) ───────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'reschedule_request'
+    && isset($_SESSION['lookup_phone']) && !isset($_SESSION['lookup_code'])) {
+
+    $booking_id = (int)($_POST['booking_id'] ?? 0);
+    $pref_dates = trim($_POST['preferred_dates'] ?? '');
+    $reason     = trim($_POST['reason'] ?? '');
+    $db    = get_db();
+    $clean = $_SESSION['lookup_phone'];
+
+    $vstmt = $db->prepare(
+        'SELECT b.id, b.booking_ref, b.event_date, b.start_time, b.grand_total, b.amount_paid,
+                a.name AS attraction_name,
+                c.first_name, c.last_name, c.email, c.phone
+         FROM bookings b
+         JOIN attractions a ON a.id = b.attraction_id
+         JOIN customers c ON c.id = b.customer_id
+         WHERE b.id = ? AND REGEXP_REPLACE(c.phone, "[^0-9]", "") LIKE ?
+           AND b.booking_status NOT IN (\'cancelled\',\'rescheduled\')'
+    );
+    $vstmt->execute([$booking_id, '%' . $clean]);
+    $rb = $vstmt->fetch();
+
+    if ($rb) {
+        send_reschedule_request_notification($rb, $rb['attraction_name'], $pref_dates, $reason);
+        $success_msg = 'Your reschedule request has been submitted. We\'ll be in touch within 1 business day.';
+    }
+    $step = 'bookings';
+}
+
 // ── Load bookings if verified ─────────────────────────────────────────────
-$bookings    = [];
-$customer    = null;
-$addon_map   = [];
+$bookings         = [];
+$customer         = null;
+$addon_map        = [];
+$terms_cancel     = '';
+$terms_reschedule = '';
 
 if ($step === 'bookings' && isset($_SESSION['lookup_phone'])) {
     $clean = $_SESSION['lookup_phone'];
@@ -208,9 +380,19 @@ if ($step === 'bookings' && isset($_SESSION['lookup_phone'])) {
             }
         }
     }
+
+    // Load policy terms from settings
+    $t_stmt = $db->query(
+        "SELECT setting_key, setting_value FROM settings
+         WHERE setting_key IN ('terms_cancellation', 'terms_rescheduling')"
+    );
+    foreach ($t_stmt->fetchAll() as $row) {
+        if ($row['setting_key'] === 'terms_cancellation') $terms_cancel     = $row['setting_value'];
+        if ($row['setting_key'] === 'terms_rescheduling') $terms_reschedule = $row['setting_value'];
+    }
 }
 
-render_header('My Booking', 'book');
+render_header('My Booking', 'lookup');
 ?>
 
 <div class="container container--narrow">
@@ -221,6 +403,10 @@ render_header('My Booking', 'book');
 
     <?php if ($error): ?>
     <div class="alert alert-danger mb-3"><?= h($error) ?></div>
+    <?php endif; ?>
+
+    <?php if ($success_msg): ?>
+    <div class="alert alert-success mb-3"><?= h($success_msg) ?></div>
     <?php endif; ?>
 
     <?php if ($step === 'phone'): ?>
@@ -264,17 +450,19 @@ render_header('My Booking', 'book');
     <!-- Step 3: Show bookings -->
     <?php if ($customer): ?>
     <p class="mb-3">
-        Hi <strong><?= h($customer['first_name']) ?></strong>, here are your upcoming bookings.
+        Hi <strong><?= h($customer['first_name']) ?></strong>, here are your bookings.
         <a href="<?= APP_URL ?>/booking/my-booking.php?logout=1" class="text-dim text-sm" style="margin-left:1rem;">Not you?</a>
     </p>
     <?php endif; ?>
 
     <?php if ($bookings): ?>
         <?php foreach ($bookings as $b):
-            $addons    = $addon_map[$b['id']] ?? [];
-            $is_past   = $b['event_date'] < date('Y-m-d');
-            $event_date = date('l, F j, Y', strtotime($b['event_date']));
-            $event_time = date('g:i A', strtotime($b['start_time']));
+            $addons      = $addon_map[$b['id']] ?? [];
+            $is_past     = $b['event_date'] < date('Y-m-d');
+            $event_date  = date('l, F j, Y', strtotime($b['event_date']));
+            $event_time  = date('g:i A', strtotime($b['start_time']));
+            $days_until  = (int)floor((strtotime($b['event_date'] . ' midnight') - strtotime('today midnight')) / 86400);
+            $within_window = $days_until < CANCELLATION_DAYS;
         ?>
         <div class="panel mb-3 <?= $is_past ? 'opacity-50' : '' ?>">
             <div class="d-flex justify-between align-center flex-wrap gap-2 mb-3">
@@ -371,6 +559,128 @@ render_header('My Booking', 'book');
                 </button>
             </form>
             <?php endif; ?>
+
+            <?php if (!$is_past): ?>
+            <!-- Cancel / Reschedule actions -->
+            <div class="d-flex gap-2 mt-3" style="border-top:1px solid rgba(255,255,255,0.1);padding-top:0.75rem;">
+                <a href="?show=cancel&bid=<?= $b['id'] ?>#panel-<?= $b['id'] ?>"
+                   class="btn btn-ghost btn-sm" style="color:var(--orange);flex:1;text-align:center;">
+                    Request Cancellation
+                </a>
+                <a href="?show=reschedule&bid=<?= $b['id'] ?>#panel-<?= $b['id'] ?>"
+                   class="btn btn-ghost btn-sm" style="flex:1;text-align:center;">
+                    Reschedule
+                </a>
+            </div>
+            <div id="panel-<?= $b['id'] ?>"></div>
+
+            <?php if ($show_panel === 'cancel' && $panel_bid === (int)$b['id']): ?>
+            <!-- Cancel panel -->
+            <div class="panel mt-3" style="border:1px solid var(--orange);background:rgba(255,100,0,0.05);">
+                <h4 style="color:var(--orange);margin:0 0 12px;">Request Cancellation</h4>
+                <?php if ($terms_cancel): ?>
+                <div class="text-sm text-dim mb-3"
+                     style="background:rgba(0,0,0,0.2);border-radius:6px;padding:10px 12px;line-height:1.5;">
+                    <strong>Cancellation Policy:</strong> <?= h($terms_cancel) ?>
+                </div>
+                <?php endif; ?>
+                <p class="text-sm text-dim mb-3">
+                    You accepted these terms when you booked. Submitting this request will notify Sherwood Adventure.
+                    Refunds (if applicable) are processed manually within 3–5 business days.
+                </p>
+                <form method="POST">
+                    <input type="hidden" name="action" value="cancel_request">
+                    <input type="hidden" name="booking_id" value="<?= $b['id'] ?>">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-sm"
+                                style="background:var(--orange);color:#111;font-weight:700;">
+                            Submit Cancellation Request
+                        </button>
+                        <a href="?" class="btn btn-ghost btn-sm">Back</a>
+                    </div>
+                </form>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($show_panel === 'reschedule' && $panel_bid === (int)$b['id']): ?>
+            <!-- Reschedule panel -->
+            <div class="panel mt-3" style="border:1px solid var(--gold);background:rgba(254,214,17,0.03);">
+                <h4 style="color:var(--gold);margin:0 0 12px;">Reschedule Booking</h4>
+                <?php if ($terms_reschedule): ?>
+                <div class="text-sm text-dim mb-3"
+                     style="background:rgba(0,0,0,0.2);border-radius:6px;padding:10px 12px;line-height:1.5;">
+                    <strong>Rescheduling Policy:</strong> <?= h($terms_reschedule) ?>
+                </div>
+                <?php endif; ?>
+
+                <?php if ($within_window): ?>
+                <!-- Request flow: within 14-day window -->
+                <p class="text-sm text-dim mb-3">
+                    Your event is within <?= CANCELLATION_DAYS ?> days. Please provide your preferred
+                    alternate dates and we'll contact you to arrange the reschedule.
+                </p>
+                <form method="POST">
+                    <input type="hidden" name="action" value="reschedule_request">
+                    <input type="hidden" name="booking_id" value="<?= $b['id'] ?>">
+                    <div class="form-group">
+                        <label class="form-label">Preferred Alternate Dates</label>
+                        <input type="text" name="preferred_dates" class="form-input"
+                               placeholder="e.g. June 15, June 22, or any Saturday in July">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Reason <span class="text-dim">(optional)</span></label>
+                        <textarea name="reason" class="form-input" rows="2"
+                                  placeholder="e.g. family emergency, schedule conflict..."></textarea>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm">Submit Request</button>
+                        <a href="?" class="btn btn-ghost btn-sm">Back</a>
+                    </div>
+                </form>
+
+                <?php else: ?>
+                <!-- Self-serve reschedule: more than 14 days out -->
+                <form method="POST">
+                    <input type="hidden" name="action" value="reschedule_date">
+                    <input type="hidden" name="booking_id" value="<?= $b['id'] ?>">
+                    <div class="form-group">
+                        <label class="form-label">Select New Date</label>
+                        <input type="date" name="reschedule_date" class="form-input"
+                               min="<?= date('Y-m-d', strtotime('+' . CANCELLATION_DAYS . ' days')) ?>"
+                               value="<?= ($reschedule_date && $panel_bid === (int)$b['id']) ? h($reschedule_date) : '' ?>">
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-secondary btn-sm">Check Availability</button>
+                        <a href="?" class="btn btn-ghost btn-sm">Back</a>
+                    </div>
+                </form>
+
+                <?php if ($reschedule_slots && $panel_bid === (int)$b['id']): ?>
+                <hr class="price-divider">
+                <p class="text-sm mb-2">
+                    <strong>Available times on <?= date('l, F j, Y', strtotime($reschedule_date)) ?>:</strong>
+                </p>
+                <form method="POST">
+                    <input type="hidden" name="action" value="reschedule_confirm">
+                    <input type="hidden" name="booking_id" value="<?= $b['id'] ?>">
+                    <input type="hidden" name="new_date" value="<?= h($reschedule_date) ?>">
+                    <div class="form-group">
+                        <label class="form-label">Select Time</label>
+                        <select name="new_time" class="form-input">
+                            <?php foreach ($reschedule_slots as $slot): ?>
+                            <option value="<?= h($slot) ?>"><?= date('g:i A', strtotime($slot)) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">Confirm Reschedule</button>
+                </form>
+                <?php endif; ?>
+
+                <?php endif; // $within_window ?>
+            </div>
+            <?php endif; // reschedule panel ?>
+
+            <?php endif; // !$is_past ?>
         </div>
         <?php endforeach; ?>
     <?php else: ?>
@@ -384,14 +694,4 @@ render_header('My Booking', 'book');
     </p>
 </div>
 
-<?php
-// Handle logout
-if (isset($_GET['logout'])) {
-    unset($_SESSION['lookup_phone'], $_SESSION['lookup_code'],
-          $_SESSION['lookup_expires'], $_SESSION['lookup_attempts']);
-    header('Location: ' . APP_URL . '/booking/my-booking.php');
-    exit;
-}
-
-render_footer();
-?>
+<?php render_footer(); ?>

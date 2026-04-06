@@ -243,6 +243,153 @@ function send_admin_booking_notification(array $booking, array $customer, string
     return send_email(ADMIN_EMAIL, $subject, $html);
 }
 
+/**
+ * Notify admin of a customer cancellation request.
+ * $booking must contain: id, booking_ref, event_date, start_time, grand_total,
+ *   amount_paid, attraction_name, first_name, last_name, email, phone
+ */
+function send_cancel_request_notification(array $booking, string $attraction_name): bool {
+    require_once __DIR__ . '/mailer.php';
+    if (!defined('ADMIN_EMAIL') || !ADMIN_EMAIL) return false;
+
+    $ref           = $booking['booking_ref'];
+    $event_date    = date('l, F j, Y', strtotime($booking['event_date']));
+    $event_time    = date('g:i A', strtotime($booking['start_time']));
+    $customer_name = $booking['first_name'] . ' ' . $booking['last_name'];
+    $days_until    = (int)floor((strtotime($booking['event_date'] . ' midnight') - strtotime('today midnight')) / 86400);
+
+    $subject = "Cancellation Request: {$ref} — {$customer_name}";
+
+    $html = email_wrapper("Cancellation Request", "
+        <p style='font-size:16px;margin:0 0 20px;'>A customer has requested to cancel their booking.</p>
+        " . email_section("Booking", "
+            " . email_detail_row('Reference', $ref) . "
+            " . email_detail_row('Customer', htmlspecialchars($customer_name)) . "
+            " . email_detail_row('Email', htmlspecialchars($booking['email'])) . "
+            " . email_detail_row('Phone', htmlspecialchars($booking['phone'])) . "
+            " . email_detail_row('Activity', htmlspecialchars($attraction_name)) . "
+            " . email_detail_row('Event Date', $event_date . ' at ' . $event_time) . "
+            " . email_detail_row('Days Until Event', $days_until . ' day' . ($days_until !== 1 ? 's' : '')) . "
+            " . email_detail_row('Grand Total', '$' . number_format($booking['grand_total'], 2)) . "
+            " . email_detail_row('Amount Paid', '$' . number_format($booking['amount_paid'], 2)) . "
+        ") . "
+        <p style='margin:20px 0 0;'>
+            <a href='" . APP_URL . "/admin/booking.php?id=" . (int)$booking['id'] . "'
+               style='background:#fed611;color:#111;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:700;'>
+                View Booking
+            </a>
+        </p>
+    ");
+
+    return send_email(ADMIN_EMAIL, $subject, $html);
+}
+
+/**
+ * Notify admin of a customer reschedule request (within 14-day window).
+ */
+function send_reschedule_request_notification(array $booking, string $attraction_name, string $preferred_dates, string $reason): bool {
+    require_once __DIR__ . '/mailer.php';
+    if (!defined('ADMIN_EMAIL') || !ADMIN_EMAIL) return false;
+
+    $ref           = $booking['booking_ref'];
+    $event_date    = date('l, F j, Y', strtotime($booking['event_date']));
+    $event_time    = date('g:i A', strtotime($booking['start_time']));
+    $customer_name = $booking['first_name'] . ' ' . $booking['last_name'];
+
+    $subject = "Reschedule Request: {$ref} — {$customer_name}";
+
+    $html = email_wrapper("Reschedule Request", "
+        <p style='font-size:16px;margin:0 0 20px;'>A customer has requested to reschedule their booking.</p>
+        " . email_section("Booking", "
+            " . email_detail_row('Reference', $ref) . "
+            " . email_detail_row('Customer', htmlspecialchars($customer_name)) . "
+            " . email_detail_row('Email', htmlspecialchars($booking['email'])) . "
+            " . email_detail_row('Phone', htmlspecialchars($booking['phone'])) . "
+            " . email_detail_row('Activity', htmlspecialchars($attraction_name)) . "
+            " . email_detail_row('Current Date', $event_date . ' at ' . $event_time) . "
+        ") . "
+        " . email_section("Request Details", "
+            " . email_detail_row('Preferred Dates', $preferred_dates ? htmlspecialchars($preferred_dates) : '—') . "
+            " . email_detail_row('Reason', $reason ? htmlspecialchars($reason) : '—') . "
+        ") . "
+        <p style='margin:20px 0 0;'>
+            <a href='" . APP_URL . "/admin/booking.php?id=" . (int)$booking['id'] . "'
+               style='background:#fed611;color:#111;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:700;'>
+                View Booking
+            </a>
+        </p>
+    ");
+
+    return send_email(ADMIN_EMAIL, $subject, $html);
+}
+
+/**
+ * Send reschedule confirmation to customer after a self-serve reschedule.
+ */
+function send_reschedule_confirmation(array $booking, array $customer, string $attraction_name): bool {
+    require_once __DIR__ . '/mailer.php';
+
+    $ref        = $booking['booking_ref'];
+    $event_date = date('l, F j, Y', strtotime($booking['event_date']));
+    $event_time = date('g:i A', strtotime($booking['start_time']));
+    $duration   = $booking['duration_hours'] . ' hour' . ($booking['duration_hours'] != 1 ? 's' : '');
+
+    $subject = "Booking Rescheduled — {$ref} — {$attraction_name} now on {$event_date}";
+
+    $html = email_wrapper("Booking Rescheduled", "
+        <p style='font-size:16px;margin:0 0 20px;'>
+            Hi {$customer['first_name']}, your Sherwood Adventure booking has been rescheduled.
+            Your booking reference is <strong style='color:#fed611;'>{$ref}</strong>.
+        </p>
+        " . email_section("Updated Event Details", "
+            " . email_detail_row('Activity', htmlspecialchars($attraction_name)) . "
+            " . email_detail_row('New Date', $event_date) . "
+            " . email_detail_row('New Time', $event_time) . "
+            " . email_detail_row('Duration', $duration) . "
+        ") . "
+        <p style='font-size:13px;color:#a0a0a0;margin:24px 0 0;'>
+            Questions? Reply to this email or visit
+            <a href='https://sherwoodadventure.com/contact-us.html' style='color:#fed611;'>our contact page</a>.
+        </p>
+    ");
+
+    $to = $customer['first_name'] . ' ' . $customer['last_name'] . ' <' . $customer['email'] . '>';
+    return send_email($to, $subject, $html, [], SMTP_USER);
+}
+
+/**
+ * Notify admin when a customer self-reschedules (> 14 days out).
+ */
+function send_admin_reschedule_notification(array $booking, array $customer, string $attraction_name): bool {
+    require_once __DIR__ . '/mailer.php';
+    if (!defined('ADMIN_EMAIL') || !ADMIN_EMAIL) return false;
+
+    $ref           = $booking['booking_ref'];
+    $event_date    = date('l, F j, Y', strtotime($booking['event_date']));
+    $event_time    = date('g:i A', strtotime($booking['start_time']));
+    $customer_name = $customer['first_name'] . ' ' . $customer['last_name'];
+
+    $subject = "Booking Rescheduled: {$ref} — {$customer_name}";
+
+    $html = email_wrapper("Booking Rescheduled by Customer", "
+        <p style='font-size:16px;margin:0 0 20px;'>A customer has self-rescheduled their booking.</p>
+        " . email_section("Updated Booking", "
+            " . email_detail_row('Reference', $ref) . "
+            " . email_detail_row('Customer', htmlspecialchars($customer_name)) . "
+            " . email_detail_row('Activity', htmlspecialchars($attraction_name)) . "
+            " . email_detail_row('New Date', $event_date . ' at ' . $event_time) . "
+        ") . "
+        <p style='margin:20px 0 0;'>
+            <a href='" . APP_URL . "/admin/booking.php?id=" . (int)$booking['id'] . "'
+               style='background:#fed611;color:#111;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:700;'>
+                View Booking
+            </a>
+        </p>
+    ");
+
+    return send_email(ADMIN_EMAIL, $subject, $html);
+}
+
 // ── Template helpers ───────────────────────────────────────────────────────
 
 function email_wrapper(string $heading, string $content): string {
