@@ -166,7 +166,12 @@ if (isset($_GET['edit'])) {
                 </div>
             </div>
 
-            <p class="text-orange" style="font-size:0.78rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:0.5rem;">Pricing</p>
+            <p class="text-orange" style="font-size:0.78rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:0.5rem;">
+                Pricing
+                <span class="text-dim" style="font-size:0.72rem;text-transform:none;letter-spacing:0;font-weight:normal;">
+                    — changes apply to new bookings only; existing bookings keep their original prices
+                </span>
+            </p>
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label">Base Hours</label>

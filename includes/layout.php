@@ -129,6 +129,10 @@ function render_admin_header(string $title, string $active_nav = ''): void {
            class="<?= $active_nav === 'availability' ? 'active' : '' ?>">Availability</a>
         <a href="<?= $app_url ?>/admin/reports.php"
            class="<?= $active_nav === 'reports' ? 'active' : '' ?>">Reports</a>
+        <a href="<?= $app_url ?>/admin/webhooks.php"
+           class="<?= $active_nav === 'webhooks' ? 'active' : '' ?>">Webhook Log</a>
+        <a href="<?= $app_url ?>/admin/email-log.php"
+           class="<?= $active_nav === 'email-log' ? 'active' : '' ?>">Email Log</a>
         <a href="<?= $app_url ?>/admin/settings.php"
            class="<?= $active_nav === 'settings' ? 'active' : '' ?>">Settings</a>
     </aside>

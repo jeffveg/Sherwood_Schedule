@@ -6,6 +6,22 @@
  */
 
 /**
+ * Log an email send attempt to the email_log table.
+ */
+function log_email(string $to, string $subject, string $status, string $error = ''): void {
+    try {
+        require_once __DIR__ . '/db.php';
+        $db       = get_db();
+        $to_email = preg_match('/<(.+?)>/', $to, $m) ? $m[1] : trim($to);
+        $db->prepare(
+            'INSERT INTO email_log (to_address, subject, status, error) VALUES (?,?,?,?)'
+        )->execute([$to_email, $subject, $status, $error ?: null]);
+    } catch (Throwable $e) {
+        error_log('Email log failed: ' . $e->getMessage());
+    }
+}
+
+/**
  * Send an email via SMTP.
  *
  * @param string      $to          Recipient "Name <email>" or just "email"
@@ -60,7 +76,9 @@ function send_email(string $to, string $subject, string $html_body, array $attac
             // Fall back to STARTTLS on port 587
             $socket = fsockopen($host, $port, $errno, $errstr, 15);
             if (!$socket) {
-                error_log("SMTP connect failed: {$errstr} ({$errno})");
+                $err = "SMTP connect failed: {$errstr} ({$errno})";
+                error_log($err);
+                log_email($to, $subject, 'failed', $err);
                 return false;
             }
             $use_starttls = true;
@@ -91,8 +109,10 @@ function send_email(string $to, string $subject, string $html_body, array $attac
         smtp_send($socket, base64_encode($pass));
         $auth = smtp_read($socket);
         if (!str_starts_with($auth, '235')) {
-            error_log("SMTP auth failed: {$auth}");
+            $err = "SMTP auth failed: " . trim($auth);
+            error_log($err);
             fclose($socket);
+            log_email($to, $subject, 'failed', $err);
             return false;
         }
 
@@ -129,10 +149,15 @@ function send_email(string $to, string $subject, string $html_body, array $attac
         smtp_send($socket, "QUIT");
         fclose($socket);
 
-        return str_starts_with($sent, '250');
+        $success = str_starts_with($sent, '250');
+        log_email($to, $subject, $success ? 'sent' : 'failed',
+                  $success ? '' : 'SMTP DATA response: ' . trim($sent));
+        return $success;
 
     } catch (Throwable $e) {
-        error_log("SMTP exception: " . $e->getMessage());
+        $err = "SMTP exception: " . $e->getMessage();
+        error_log($err);
+        log_email($to, $subject, 'failed', $err);
         return false;
     }
 }

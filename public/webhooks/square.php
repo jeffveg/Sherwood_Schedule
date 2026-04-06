@@ -15,14 +15,39 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/email_templates.php';
 
+// ── Logging helper ────────────────────────────────────────────────────────────
+function log_webhook(string $status, string $event_type = '', string $event_id = '',
+                     string $payment_id = '', string $booking_ref = '',
+                     string $notes = '', string $payload = ''): void {
+    try {
+        $db = get_db();
+        $db->prepare(
+            'INSERT INTO webhook_events
+             (event_type, square_event_id, payment_id, booking_ref, status, notes, raw_payload)
+             VALUES (?,?,?,?,?,?,?)'
+        )->execute([
+            $event_type  ?: null,
+            $event_id    ?: null,
+            $payment_id  ?: null,
+            $booking_ref ?: null,
+            $status,
+            $notes       ?: null,
+            $payload ? substr($payload, 0, 5000) : null,
+        ]);
+    } catch (Throwable $e) {
+        error_log('Webhook log failed: ' . $e->getMessage());
+    }
+}
+
 // ── Verify Square signature ────────────────────────────────────────────────
-$raw_body  = file_get_contents('php://input');
+$raw_body   = file_get_contents('php://input');
 $sig_header = $_SERVER['HTTP_X_SQUARE_HMACSHA256_SIGNATURE'] ?? '';
 $url        = APP_URL . '/webhooks/square.php';
 
 $expected = base64_encode(hash_hmac('sha256', $url . $raw_body, SQUARE_WEBHOOK_SIGNATURE_KEY, true));
 
 if (!hash_equals($expected, $sig_header)) {
+    log_webhook('sig_failed', '', '', '', '', 'Signature mismatch', substr($raw_body, 0, 500));
     http_response_code(403);
     exit('Forbidden');
 }
@@ -30,18 +55,34 @@ if (!hash_equals($expected, $sig_header)) {
 // ── Parse event ───────────────────────────────────────────────────────────
 $event = json_decode($raw_body, true);
 if (!$event) {
+    log_webhook('error', '', '', '', '', 'Invalid JSON payload', substr($raw_body, 0, 500));
     http_response_code(400);
     exit('Bad Request');
 }
 
-$event_type = $event['type'] ?? '';
+$event_type     = $event['type'] ?? '';
+$square_event_id = $event['event_id'] ?? '';
 $db = get_db();
 
-// Helper: update booking payment status
-function update_booking_payment(PDO $db, string $order_id, string $status, float $amount): void {
+// ── Duplicate detection ───────────────────────────────────────────────────
+if ($square_event_id) {
+    $dup = $db->prepare(
+        "SELECT id FROM webhook_events WHERE square_event_id = ? AND status = 'processed' LIMIT 1"
+    );
+    $dup->execute([$square_event_id]);
+    if ($dup->fetch()) {
+        log_webhook('duplicate', $event_type, $square_event_id, '', '', 'Already processed');
+        http_response_code(200);
+        echo 'OK';
+        exit;
+    }
+}
+
+// ── Helper: update booking payment status ─────────────────────────────────
+function update_booking_payment(PDO $db, string $order_id, string $status, float $amount): ?string {
     // Find the payment record by Square order ID
     $stmt = $db->prepare(
-        'SELECT p.id, p.booking_id, p.payment_type, b.grand_total, b.deposit_amount, b.payment_option
+        'SELECT p.id, p.booking_id, p.payment_type, b.grand_total, b.booking_ref
          FROM payments p
          JOIN bookings b ON b.id = p.booking_id
          WHERE p.square_order_id = ?
@@ -49,16 +90,17 @@ function update_booking_payment(PDO $db, string $order_id, string $status, float
     );
     $stmt->execute([$order_id]);
     $payment = $stmt->fetch();
-    if (!$payment) return;
+    if (!$payment) return null;
 
-    $booking_id = $payment['booking_id'];
+    $booking_id  = $payment['booking_id'];
+    $booking_ref = $payment['booking_ref'];
 
     // Update payment record
     $db->prepare(
         'UPDATE payments SET status = ?, amount = ?, paid_at = NOW() WHERE id = ?'
     )->execute([$status, $amount, $payment['id']]);
 
-    if ($status !== 'completed') return;
+    if ($status !== 'completed') return $booking_ref;
 
     // Recalculate totals from all completed payments for this booking
     $sum_stmt = $db->prepare(
@@ -85,8 +127,11 @@ function update_booking_payment(PDO $db, string $order_id, string $status, float
     $brow = $chk->fetch();
 
     if ($brow && !$brow['confirmation_sent']) {
-        // Load full booking row
-        $bstmt = $db->prepare('SELECT b.*, a.name AS attraction_name FROM bookings b JOIN attractions a ON a.id = b.attraction_id WHERE b.id = ?');
+        $bstmt = $db->prepare(
+            'SELECT b.*, a.name AS attraction_name
+             FROM bookings b JOIN attractions a ON a.id = b.attraction_id
+             WHERE b.id = ?'
+        );
         $bstmt->execute([$booking_id]);
         $full_booking = $bstmt->fetch();
 
@@ -106,40 +151,53 @@ function update_booking_payment(PDO $db, string $order_id, string $status, float
             send_admin_booking_notification($full_booking, $customer, $full_booking['attraction_name']);
         }
     }
+
+    return $booking_ref;
 }
 
+// ── Route event ───────────────────────────────────────────────────────────
 switch ($event_type) {
     case 'payment.completed':
     case 'payment.updated':
         $payment_obj = $event['data']['object']['payment'] ?? null;
-        if (!$payment_obj) break;
-
-        $order_id = $payment_obj['order_id'] ?? '';
-        $status   = ($payment_obj['status'] ?? '') === 'COMPLETED' ? 'completed' : 'pending';
-        $amount   = round(($payment_obj['amount_money']['amount'] ?? 0) / 100, 2);
-
-        // Store Square payment ID
-        if ($order_id) {
-            $db->prepare(
-                'UPDATE payments SET square_payment_id = ? WHERE square_order_id = ?'
-            )->execute([$payment_obj['id'] ?? null, $order_id]);
+        if (!$payment_obj) {
+            log_webhook('error', $event_type, $square_event_id, '', '', 'No payment object in payload', $raw_body);
+            break;
         }
 
-        update_booking_payment($db, $order_id, $status, $amount);
+        $order_id   = $payment_obj['order_id'] ?? '';
+        $payment_id = $payment_obj['id'] ?? '';
+        $sq_status  = ($payment_obj['status'] ?? '') === 'COMPLETED' ? 'completed' : 'pending';
+        $amount     = round(($payment_obj['amount_money']['amount'] ?? 0) / 100, 2);
+
+        if ($order_id) {
+            $db->prepare('UPDATE payments SET square_payment_id = ? WHERE square_order_id = ?')
+               ->execute([$payment_id, $order_id]);
+        }
+
+        $booking_ref = update_booking_payment($db, $order_id, $sq_status, $amount);
+        log_webhook(
+            'processed', $event_type, $square_event_id, $payment_id, $booking_ref ?? '',
+            '$' . number_format($amount, 2) . ' — ' . strtoupper($sq_status)
+              . ($booking_ref ? '' : ' (no matching order)')
+        );
         break;
 
     case 'order.updated':
-        $order = $event['data']['object']['order_updated'] ?? $event['data']['object']['order'] ?? null;
-        if (!$order) break;
-        $order_id = $order['order_id'] ?? $order['id'] ?? '';
-        $state    = $order['state'] ?? '';
+        $order      = $event['data']['object']['order_updated'] ?? $event['data']['object']['order'] ?? null;
+        $order_id   = $order['order_id'] ?? $order['id'] ?? '';
+        $state      = $order['state'] ?? '';
         if ($state === 'COMPLETED' && $order_id) {
-            // Mark as completed if not already done by payment.completed
             $db->prepare(
                 'UPDATE payments SET status = "completed", paid_at = COALESCE(paid_at, NOW())
                  WHERE square_order_id = ? AND status = "pending"'
             )->execute([$order_id]);
         }
+        log_webhook('processed', $event_type, $square_event_id, '', '', 'Order state: ' . ($state ?: 'unknown'));
+        break;
+
+    default:
+        log_webhook('ignored', $event_type, $square_event_id, '', '', 'Unhandled event type');
         break;
 }
 
