@@ -8,7 +8,6 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/layout.php';
 require_once __DIR__ . '/../../includes/admin_helpers.php';
-require_once __DIR__ . '/../../includes/email_templates.php';
 
 admin_require_login();
 date_default_timezone_set(APP_TIMEZONE);
@@ -70,43 +69,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $flash = 'Tax rate deleted.';
     }
 
-    // Send balance reminders
-    elseif ($action === 'send_reminders') {
-        $reminder_days = (int)($settings['balance_reminder_days'] ?? 7);
-        $stmt = $db->prepare(
-            "SELECT b.*, a.name AS attraction_name,
-                    c.first_name, c.last_name, c.email
-             FROM bookings b
-             JOIN attractions a ON a.id = b.attraction_id
-             JOIN customers c ON c.id = b.customer_id
-             WHERE b.balance_due > 0
-               AND b.booking_status NOT IN ('cancelled','rescheduled')
-               AND b.event_date >= CURDATE()
-               AND DATEDIFF(b.event_date, CURDATE()) <= ?
-             ORDER BY b.event_date ASC"
-        );
-        $stmt->execute([$reminder_days]);
-        $to_remind = $stmt->fetchAll();
-
-        $sent = 0;
-        $failed = 0;
-        foreach ($to_remind as $rb) {
-            $customer = ['first_name' => $rb['first_name'], 'last_name' => $rb['last_name'], 'email' => $rb['email']];
-            if (send_balance_reminder($rb, $customer, $rb['attraction_name'])) {
-                $sent++;
-            } else {
-                $failed++;
-            }
-        }
-
-        if ($failed === 0) {
-            $flash = "Sent {$sent} balance reminder" . ($sent !== 1 ? 's' : '') . '.';
-        } else {
-            $flash = "Sent {$sent}, failed {$failed}.";
-            $flash_type = 'warning';
-        }
-    }
-
     // Travel fee config
     elseif ($action === 'travel') {
         $db->prepare(
@@ -128,23 +90,6 @@ foreach ($settings_rows as $row) { $settings[$row['setting_key']] = $row['settin
 $tax_rates = $db->query('SELECT * FROM tax_config ORDER BY sort_order')->fetchAll();
 $travel    = $db->query('SELECT * FROM travel_fee_config WHERE id = 1')->fetch();
 
-// Load bookings eligible for balance reminders
-$reminder_days = (int)($settings['balance_reminder_days'] ?? 7);
-$remind_stmt   = $db->prepare(
-    "SELECT b.id, b.booking_ref, b.event_date, b.balance_due, b.booking_status,
-            a.name AS attraction_name,
-            c.first_name, c.last_name, c.email
-     FROM bookings b
-     JOIN attractions a ON a.id = b.attraction_id
-     JOIN customers c ON c.id = b.customer_id
-     WHERE b.balance_due > 0
-       AND b.booking_status NOT IN ('cancelled','rescheduled')
-       AND b.event_date >= CURDATE()
-       AND DATEDIFF(b.event_date, CURDATE()) <= ?
-     ORDER BY b.event_date ASC"
-);
-$remind_stmt->execute([$reminder_days]);
-$reminder_bookings = $remind_stmt->fetchAll();
 
 $total_tax = array_sum(array_column($tax_rates, 'rate')) * 100;
 
@@ -286,53 +231,6 @@ render_admin_header('Settings', 'settings');
             </div>
             <button type="submit" class="btn btn-primary btn-sm">Save Travel Config</button>
         </form>
-    </div>
-</div>
-
-<!-- Balance Reminders -->
-<div class="admin-panel mb-4">
-    <div class="admin-panel__header">
-        Balance Reminders
-        <span class="text-dim" style="font-size:0.8rem;font-weight:400;float:right;">
-            Events within <?= $reminder_days ?> days with an outstanding balance
-        </span>
-    </div>
-    <div class="admin-panel__body">
-        <?php if ($reminder_bookings): ?>
-        <table class="detail-table mb-3">
-            <thead>
-                <tr>
-                    <th>Ref</th>
-                    <th>Customer</th>
-                    <th>Activity</th>
-                    <th>Event Date</th>
-                    <th>Balance Due</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php foreach ($reminder_bookings as $r): ?>
-            <tr>
-                <td><a href="booking.php?id=<?= $r['id'] ?>"><?= htmlspecialchars($r['booking_ref']) ?></a></td>
-                <td><?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?></td>
-                <td><?= htmlspecialchars($r['attraction_name']) ?></td>
-                <td><?= date('M j, Y', strtotime($r['event_date'])) ?></td>
-                <td style="color:var(--warning-color);">$<?= number_format($r['balance_due'], 2) ?></td>
-                <td><?= ucfirst($r['booking_status']) ?></td>
-            </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
-        <form method="POST"
-              onsubmit="return confirm('Send balance reminder emails to <?= count($reminder_bookings) ?> customer(s)?')">
-            <input type="hidden" name="action" value="send_reminders">
-            <button type="submit" class="btn btn-primary btn-sm">
-                Send Reminders (<?= count($reminder_bookings) ?>)
-            </button>
-        </form>
-        <?php else: ?>
-        <p class="text-dim">No bookings with an outstanding balance in the next <?= $reminder_days ?> days.</p>
-        <?php endif; ?>
     </div>
 </div>
 

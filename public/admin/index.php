@@ -7,11 +7,40 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/layout.php';
 require_once __DIR__ . '/../../includes/admin_helpers.php';
+require_once __DIR__ . '/../../includes/email_templates.php';
 
 admin_require_login();
 date_default_timezone_set(APP_TIMEZONE);
 
 $db = get_db();
+
+// Load reminder window from settings
+$reminder_days_row = $db->query("SELECT setting_value FROM settings WHERE setting_key = 'balance_reminder_days'")->fetch();
+$reminder_days     = (int)($reminder_days_row['setting_value'] ?? 7);
+
+$flash = '';
+
+// ── POST: send balance reminders ──────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_reminders') {
+    $stmt = $db->prepare(
+        "SELECT b.*, a.name AS attraction_name, c.first_name, c.last_name, c.email
+         FROM bookings b
+         JOIN attractions a ON a.id = b.attraction_id
+         JOIN customers c ON c.id = b.customer_id
+         WHERE b.balance_due > 0
+           AND b.booking_status NOT IN ('cancelled','rescheduled')
+           AND b.event_date >= CURDATE()
+           AND DATEDIFF(b.event_date, CURDATE()) <= ?
+         ORDER BY b.event_date ASC"
+    );
+    $stmt->execute([$reminder_days]);
+    $sent = $failed = 0;
+    foreach ($stmt->fetchAll() as $rb) {
+        $customer = ['first_name' => $rb['first_name'], 'last_name' => $rb['last_name'], 'email' => $rb['email']];
+        send_balance_reminder($rb, $customer, $rb['attraction_name']) ? $sent++ : $failed++;
+    }
+    $flash = "Sent {$sent} balance reminder" . ($sent !== 1 ? 's' : '') . ($failed ? ", {$failed} failed" : '') . '.';
+}
 
 // ── Stats ──────────────────────────────────────────────────────────────────
 $today    = date('Y-m-d');
@@ -45,6 +74,23 @@ $stmt = $db->prepare("SELECT COUNT(*) FROM bookings WHERE created_at >= ?");
 $stmt->execute([$month_start . ' 00:00:00']);
 $new_this_month = (int)$stmt->fetchColumn();
 
+// ── Bookings needing balance reminders ────────────────────────────────────
+$remind_stmt = $db->prepare(
+    "SELECT b.id, b.booking_ref, b.event_date, b.balance_due,
+            a.name AS attraction_name,
+            c.first_name, c.last_name
+     FROM bookings b
+     JOIN attractions a ON a.id = b.attraction_id
+     JOIN customers c ON c.id = b.customer_id
+     WHERE b.balance_due > 0
+       AND b.booking_status NOT IN ('cancelled','rescheduled')
+       AND b.event_date >= CURDATE()
+       AND DATEDIFF(b.event_date, CURDATE()) <= ?
+     ORDER BY b.event_date ASC"
+);
+$remind_stmt->execute([$reminder_days]);
+$reminder_bookings = $remind_stmt->fetchAll();
+
 // ── Upcoming bookings (next 10) ────────────────────────────────────────────
 $upcoming = $db->prepare(
     "SELECT b.id, b.booking_ref, b.event_date, b.start_time, b.duration_hours,
@@ -77,6 +123,10 @@ $recent = $db->query(
 render_admin_header('Dashboard', 'dashboard');
 ?>
 
+<?php if ($flash): ?>
+<div class="alert alert-success mb-3"><?= htmlspecialchars($flash) ?></div>
+<?php endif; ?>
+
 <!-- Stat Cards -->
 <div class="admin-stats">
     <div class="admin-stat-card">
@@ -96,6 +146,44 @@ render_admin_header('Dashboard', 'dashboard');
         <div class="admin-stat-card__label">New This Month</div>
     </div>
 </div>
+
+<?php if ($reminder_bookings): ?>
+<!-- Balance Reminders Alert -->
+<div class="admin-panel mb-4" style="border-left:4px solid var(--warning-color,#ffa133);">
+    <div class="admin-panel__header" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>&#9888; Balance Reminders Due</span>
+        <span class="text-dim" style="font-size:0.8rem;font-weight:400;">
+            <?= count($reminder_bookings) ?> booking<?= count($reminder_bookings) !== 1 ? 's' : '' ?>
+            with balance due within <?= $reminder_days ?> days
+        </span>
+    </div>
+    <div class="admin-panel__body">
+        <table class="data-table mb-3">
+            <thead>
+                <tr><th>Ref</th><th>Customer</th><th>Activity</th><th>Event Date</th><th>Balance Due</th></tr>
+            </thead>
+            <tbody>
+            <?php foreach ($reminder_bookings as $r): ?>
+            <tr>
+                <td><a href="booking.php?id=<?= $r['id'] ?>"><code class="text-gold"><?= htmlspecialchars($r['booking_ref']) ?></code></a></td>
+                <td><?= htmlspecialchars($r['first_name'] . ' ' . $r['last_name']) ?></td>
+                <td class="text-sm"><?= htmlspecialchars($r['attraction_name']) ?></td>
+                <td><?= date('M j, Y', strtotime($r['event_date'])) ?></td>
+                <td style="color:var(--orange);font-weight:600;">$<?= number_format($r['balance_due'], 2) ?></td>
+            </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <form method="POST"
+              onsubmit="return confirm('Send balance reminder emails to <?= count($reminder_bookings) ?> customer(s)?')">
+            <input type="hidden" name="action" value="send_reminders">
+            <button type="submit" class="btn btn-primary btn-sm">
+                Send Reminder Emails (<?= count($reminder_bookings) ?>)
+            </button>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- Upcoming Events -->
 <div class="admin-section-header">
