@@ -22,13 +22,13 @@ $phone   = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_code') {
     $raw   = trim($_POST['phone'] ?? '');
     $clean = preg_replace('/\D/', '', $raw);
-    if (strlen($clean) === 10) $clean = '1' . $clean;
+    $last10 = substr($clean, -10); // always compare last 10 digits
 
     $db   = get_db();
     $stmt = $db->prepare(
         'SELECT id FROM customers WHERE REGEXP_REPLACE(phone, "[^0-9]", "") LIKE ?'
     );
-    $stmt->execute(['%' . $clean]);
+    $stmt->execute(['%' . $last10]);
     $customer = $stmt->fetch();
 
     if (!$customer) {
@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_
             $error = 'Could not send verification code. Please try again or contact us.';
             $step  = 'phone';
         } else {
-            $_SESSION['lookup_phone']    = $clean;
+            $_SESSION['lookup_phone']    = $last10;
             $_SESSION['lookup_code']     = $code;
             $_SESSION['lookup_expires']  = time() + $CODE_TTL;
             $_SESSION['lookup_attempts'] = 0;
