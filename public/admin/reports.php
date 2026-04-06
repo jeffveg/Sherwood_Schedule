@@ -14,7 +14,10 @@ date_default_timezone_set(APP_TIMEZONE);
 $db = get_db();
 
 // ── Filters ────────────────────────────────────────────────────────────────
-$from_date  = $_GET['from']   ?? date('Y-m-01');          // default: this month
+$last_month_start = date('Y-m-01', strtotime('first day of last month'));
+$last_month_end   = date('Y-m-t',  strtotime('last day of last month'));
+
+$from_date  = $_GET['from']   ?? date('Y-m-01');
 $to_date    = $_GET['to']     ?? date('Y-m-d');
 $group_by   = in_array($_GET['group'] ?? '', ['day','month','attraction']) ? $_GET['group'] : 'month';
 $csv        = isset($_GET['csv']);
@@ -143,6 +146,10 @@ $period_label = match($group_by) {
         <option value="attraction" <?= $group_by === 'attraction' ? 'selected' : '' ?>>By Attraction</option>
     </select>
     <button type="submit" class="btn btn-secondary btn-sm">Run</button>
+    <a href="?from=<?= urlencode($last_month_start) ?>&to=<?= urlencode($last_month_end) ?>&group=day"
+       class="btn btn-ghost btn-sm" title="<?= date('F Y', strtotime('last month')) ?>">
+        Last Month
+    </a>
     <a href="?from=<?= urlencode($from_date) ?>&to=<?= urlencode($to_date) ?>&group=<?= $group_by ?>&csv=1"
        class="btn btn-ghost btn-sm">&#8595; CSV</a>
 </form>
