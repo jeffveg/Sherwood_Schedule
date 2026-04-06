@@ -235,4 +235,55 @@ $period_label = match($group_by) {
 <div class="alert alert-info">No bookings found for the selected date range.</div>
 <?php endif; ?>
 
+<?php
+// Coupon usage breakdown for the period
+$coupon_stmt = $db->prepare(
+    "SELECT c.code, c.description, c.discount_type, c.discount_amount,
+            COUNT(b.id) AS uses, SUM(b.coupon_discount) AS total_discount
+     FROM bookings b
+     JOIN coupons c ON c.id = b.coupon_id
+     WHERE b.event_date BETWEEN ? AND ?
+       AND b.booking_status NOT IN ('cancelled','rescheduled')
+       AND b.coupon_id IS NOT NULL
+     GROUP BY c.id, c.code, c.description, c.discount_type, c.discount_amount
+     ORDER BY total_discount DESC"
+);
+$coupon_stmt->execute([$from_date, $to_date]);
+$coupon_rows = $coupon_stmt->fetchAll();
+?>
+
+<?php if ($coupon_rows): ?>
+<div class="admin-section-header mt-4">
+    <h2 class="admin-section-title">Coupon Usage</h2>
+</div>
+<div class="card" style="cursor:default;overflow-x:auto;">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Description</th>
+                <th>Discount</th>
+                <th class="text-right">Times Used</th>
+                <th class="text-right">Total Discounted</th>
+            </tr>
+        </thead>
+        <tbody>
+        <?php foreach ($coupon_rows as $cr): ?>
+            <tr>
+                <td><code class="text-gold"><?= htmlspecialchars($cr['code']) ?></code></td>
+                <td class="text-sm"><?= htmlspecialchars($cr['description'] ?? '—') ?></td>
+                <td class="text-sm">
+                    <?= $cr['discount_type'] === 'percent'
+                        ? number_format($cr['discount_amount'], 0) . '%'
+                        : '$' . number_format($cr['discount_amount'], 2) . ' off' ?>
+                </td>
+                <td class="text-right"><?= (int)$cr['uses'] ?></td>
+                <td class="text-right text-success">−$<?= number_format($cr['total_discount'], 2) ?></td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+</div>
+<?php endif; ?>
+
 <?php render_admin_footer(); ?>
