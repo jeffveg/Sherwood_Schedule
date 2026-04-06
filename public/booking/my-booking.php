@@ -694,4 +694,13 @@ render_header('My Booking', 'lookup');
     </p>
 </div>
 
+<?php if ($show_panel && $panel_bid): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var el = document.getElementById('panel-<?= (int)$panel_bid ?>');
+    if (el) el.scrollIntoView({ block: 'start' });
+});
+</script>
+<?php endif; ?>
+
 <?php render_footer(); ?>
