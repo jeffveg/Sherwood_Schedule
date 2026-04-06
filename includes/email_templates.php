@@ -408,6 +408,48 @@ function send_reschedule_confirmation(array $booking, array $customer, string $a
 }
 
 /**
+ * Send cancellation confirmation to customer when admin cancels a booking.
+ */
+function send_cancellation_confirmation(array $booking, array $customer, string $attraction_name): bool {
+    require_once __DIR__ . '/mailer.php';
+
+    $ref           = $booking['booking_ref'];
+    $event_date    = date('l, F j, Y', strtotime($booking['event_date']));
+    $cancel_reason = trim($booking['cancellation_reason'] ?? '');
+    $cancel_fee    = (float)($booking['cancellation_fee'] ?? 0);
+
+    $subject = "Booking Cancelled — {$ref} — {$attraction_name}";
+
+    $reason_html = $cancel_reason
+        ? email_detail_row('Reason', htmlspecialchars($cancel_reason))
+        : '';
+    $fee_html = $cancel_fee > 0
+        ? email_detail_row('Cancellation Fee', '$' . number_format($cancel_fee, 2))
+        : '';
+
+    $html = email_wrapper("Booking Cancelled", "
+        <p style='font-size:16px;margin:0 0 20px;'>
+            Hi {$customer['first_name']}, your Sherwood Adventure booking
+            (<strong style='color:#fed611;'>{$ref}</strong>) has been cancelled.
+        </p>
+        " . email_section("Cancelled Booking", "
+            " . email_detail_row('Booking Ref', $ref) . "
+            " . email_detail_row('Activity', htmlspecialchars($attraction_name)) . "
+            " . email_detail_row('Event Date', $event_date) . "
+            {$reason_html}
+            {$fee_html}
+        ") . "
+        <p style='font-size:13px;color:#a0a0a0;margin:24px 0 0;'>
+            Questions about your cancellation? Reply to this email or visit
+            <a href='https://sherwoodadventure.com/contact-us.html' style='color:#fed611;'>our contact page</a>.
+        </p>
+    ");
+
+    $to = $customer['first_name'] . ' ' . $customer['last_name'] . ' <' . $customer['email'] . '>';
+    return send_email($to, $subject, $html, [], SMTP_USER);
+}
+
+/**
  * Notify admin when a customer self-reschedules (> 14 days out).
  */
 function send_admin_reschedule_notification(array $booking, array $customer, string $attraction_name): bool {

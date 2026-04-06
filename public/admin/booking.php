@@ -65,12 +65,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $new_status = $_POST['booking_status'] ?? '';
         $allowed    = ['pending','confirmed','cancelled','completed','rescheduled'];
         if (in_array($new_status, $allowed, true)) {
-            $extra = '';
+            $extra        = '';
             $extra_params = [];
+            $cancel_reason = null;
+            $cancel_fee    = 0;
             if ($new_status === 'cancelled') {
+                $cancel_reason = trim($_POST['cancellation_reason'] ?? '') ?: null;
+                $cancel_fee    = (float)($_POST['cancellation_fee'] ?? 0);
                 $extra = ', cancelled_at = NOW(), cancellation_reason = ?';
-                $extra_params[] = trim($_POST['cancellation_reason'] ?? '') ?: null;
-                $cancel_fee = (float)($_POST['cancellation_fee'] ?? 0);
+                $extra_params[] = $cancel_reason;
                 if ($cancel_fee > 0) {
                     $extra .= ', cancellation_fee = ?';
                     $extra_params[] = $cancel_fee;
@@ -80,6 +83,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                ->execute(array_merge([$new_status], $extra_params, [$id]));
             $flash = 'Booking status updated.';
             $booking['booking_status'] = $new_status;
+
+            // Optionally notify customer of cancellation
+            if ($new_status === 'cancelled' && !empty($_POST['notify_customer'])) {
+                $cust_row = $db->prepare('SELECT * FROM customers WHERE id = ?');
+                $cust_row->execute([$booking['customer_id']]);
+                $cust = $cust_row->fetch();
+                if ($cust) {
+                    $booking['cancellation_reason'] = $cancel_reason;
+                    $booking['cancellation_fee']    = $cancel_fee;
+                    $sent = send_cancellation_confirmation($booking, $cust, $booking['attraction_name']);
+                    $flash .= $sent ? ' Cancellation email sent to customer.' : ' (Email failed — check mail config.)';
+                }
+            }
+        }
+    }
+
+    // Reschedule booking (admin-initiated)
+    elseif ($action === 'reschedule') {
+        $new_date = trim($_POST['new_event_date'] ?? '');
+        $new_time = trim($_POST['new_start_time'] ?? '');
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $new_date) && preg_match('/^\d{2}:\d{2}$/', $new_time)) {
+            $end_ts  = strtotime($new_date . ' ' . $new_time) + (int)round($booking['duration_hours'] * 3600);
+            $new_end = date('H:i:s', $end_ts);
+
+            $db->prepare(
+                "UPDATE bookings SET event_date = ?, start_time = ?, end_time = ?,
+                 booking_status = 'confirmed', updated_at = NOW() WHERE id = ?"
+            )->execute([$new_date, $new_time . ':00', $new_end, $id]);
+
+            $flash = 'Booking rescheduled to '
+                   . date('M j, Y', strtotime($new_date)) . ' at '
+                   . date('g:i A', strtotime('2000-01-01 ' . $new_time)) . '.';
+
+            // Reload booking
+            $stmt->execute([$id]);
+            $booking = $stmt->fetch();
+
+            // Optionally notify customer
+            if (!empty($_POST['notify_customer'])) {
+                $cust_row = $db->prepare('SELECT * FROM customers WHERE id = ?');
+                $cust_row->execute([$booking['customer_id']]);
+                $cust = $cust_row->fetch();
+                if ($cust) {
+                    $sent = send_reschedule_confirmation($booking, $cust, $booking['attraction_name']);
+                    $flash .= $sent ? ' Reschedule email sent to customer.' : ' (Email failed — check mail config.)';
+                }
+            }
+        } else {
+            $flash_type = 'danger';
+            $flash = 'Please provide a valid date and time.';
         }
     }
 
@@ -557,11 +611,49 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
                             <input type="number" name="cancellation_fee" class="form-input" step="0.01" min="0"
                                    value="<?= number_format($booking['cancellation_fee'], 2) ?>">
                         </div>
+                        <div class="form-group">
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.875rem;">
+                                <input type="checkbox" name="notify_customer" value="1" checked>
+                                Email cancellation notice to customer
+                            </label>
+                        </div>
                     </div>
                     <button type="submit" class="btn btn-secondary btn-sm">Update Status</button>
                 </form>
             </div>
         </div>
+
+        <!-- Reschedule Booking -->
+        <?php if (!in_array($booking['booking_status'], ['cancelled', 'rescheduled'])): ?>
+        <div class="admin-panel mb-3">
+            <div class="admin-panel__header">Reschedule Booking</div>
+            <div class="admin-panel__body">
+                <form method="POST"
+                      onsubmit="return confirm('Reschedule this booking to the new date and time?')">
+                    <input type="hidden" name="action" value="reschedule">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">New Date</label>
+                            <input type="date" name="new_event_date" class="form-input" required
+                                   value="<?= htmlspecialchars($booking['event_date']) ?>">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">New Start Time</label>
+                            <input type="time" name="new_start_time" class="form-input" step="300" required
+                                   value="<?= htmlspecialchars(substr($booking['start_time'], 0, 5)) ?>">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.875rem;">
+                            <input type="checkbox" name="notify_customer" value="1" checked>
+                            Email reschedule confirmation to customer
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-secondary btn-sm">Reschedule Booking</button>
+                </form>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- Travel Fee Override -->
         <div class="admin-panel mb-3">
