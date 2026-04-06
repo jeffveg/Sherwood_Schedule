@@ -29,9 +29,9 @@ $step    = 'phone';
 $error   = '';
 $phone   = '';
 
-// Panel/action state
-$show_panel  = $_GET['show'] ?? '';
-$panel_bid   = (int)($_GET['bid'] ?? 0);
+// Panel/action state — only set by POST error handlers, never from GET
+$show_panel  = '';
+$panel_bid   = 0;
 $success_msg = '';
 
 // ── POST: send code ───────────────────────────────────────────────────────
