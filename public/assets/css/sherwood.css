@@ -8,34 +8,35 @@
 @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Lato:wght@300;400;700&display=swap');
 
 /* ---- CSS Custom Properties --------------------------------- */
+/* Brand tokens come from sherwoodadventure.com/css/brand.css  */
 :root {
-    --gold:        #fed611;
-    --orange:      #ffa133;
-    --forest:      #05290b;
-    --charcoal:    #27292a;
-    --charcoal-lt: #3a3c3d;
-    --text:        #dfdfdf;
+    --gold:        var(--sw-gold);
+    --orange:      var(--sw-orange);
+    --forest:      var(--sw-green);
+    --charcoal:    var(--sw-charcoal);
+    --charcoal-lt: var(--sw-charcoal-lt);
+    --text:        var(--sw-light);
     --text-dim:    #a0a0a0;
-    --white:       #ffffff;
-    --black:       #111111;
+    --white:       var(--sw-white);
+    --black:       var(--sw-black);
 
-    --success:     #2d8a4e;
-    --danger:      #c0392b;
-    --warning:     #e67e22;
-    --info:        #2980b9;
+    --success:     var(--sw-success);
+    --danger:      var(--sw-danger);
+    --warning:     var(--sw-warning);
+    --info:        var(--sw-info);
 
-    --radius:      14px;
-    --radius-sm:   8px;
-    --radius-lg:   20px;
-    --glow-gold:   0 0 8px #fed611;
-    --glow-gold-lg:0 0 18px #fed611, 0 0 4px #ffa133;
+    --radius:      var(--sw-radius);
+    --radius-sm:   var(--sw-radius-sm);
+    --radius-lg:   var(--sw-radius-lg);
+    --glow-gold:   var(--sw-glow-gold);
+    --glow-gold-lg:var(--sw-glow-gold-lg);
 
-    --font-heading:'Dancing Script', cursive;
-    --font-body:   'Lato', sans-serif;
+    --font-heading:var(--sw-font-heading);
+    --font-body:   var(--sw-font-body);
 
-    --transition:  0.2s ease;
-    --shadow:      0 4px 16px rgba(0,0,0,0.4);
-    --shadow-sm:   0 2px 8px rgba(0,0,0,0.3);
+    --transition:  var(--sw-transition);
+    --shadow:      var(--sw-shadow);
+    --shadow-sm:   var(--sw-shadow-sm);
 }
 
 /* ---- Reset & Base ----------------------------------------- */
