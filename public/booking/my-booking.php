@@ -397,6 +397,12 @@ render_header('My Booking', 'lookup');
                 <input type="tel" name="phone" class="form-input"
                        placeholder="(623) 555-1234" required autofocus
                        value="<?= h($phone) ?>">
+                <p class="form-hint" style="margin-top:0.4rem;font-size:0.78rem;color:var(--text-dim);">
+                    A one-time verification code will be sent to this number.
+                    Message &amp; data rates may apply.
+                    <a href="https://sherwoodadventure.com/sms-policy.html" target="_blank"
+                       rel="noopener" style="color:var(--gold);">SMS Policy</a>
+                </p>
             </div>
             <button type="submit" class="btn btn-primary btn-block">Send Verification Code</button>
         </form>

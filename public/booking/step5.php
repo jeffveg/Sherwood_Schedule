@@ -228,6 +228,13 @@ render_header('Venue & Contact', 'book');
                                 <input type="tel" id="phone" name="phone" class="form-input"
                                        value="<?= h($fields['phone']) ?>" autocomplete="tel"
                                        placeholder="(555) 867-5309">
+                                <p class="form-hint" style="margin-top:0.4rem;font-size:0.78rem;color:var(--text-dim);">
+                                    By providing your phone number you consent to receive text messages
+                                    regarding your booking (confirmations, reminders, day-of updates).
+                                    Message &amp; data rates may apply. Reply STOP to opt out.
+                                    <a href="https://sherwoodadventure.com/sms-policy.html" target="_blank"
+                                       rel="noopener" style="color:var(--gold);">SMS Policy</a>
+                                </p>
                             </div>
                         </div>
                         <div class="form-group">
