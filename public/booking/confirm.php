@@ -212,7 +212,7 @@ render_header($is_balance_payment ? 'Payment Received' : 'Booking Confirmed', 'b
     </div>
 
     <div class="text-center mb-4">
-        <p class="text-dim mb-3">Questions? <a href="https://sherwoodadventure.com/contact-us.html" style="color:var(--gold);">Contact us</a> or reply to your confirmation email.</p>
+        <p class="text-dim mb-3">Questions? <a href="https://sherwoodadventure.com/contact.html" style="color:var(--gold);">Contact us</a> or reply to your confirmation email.</p>
         <a href="<?= APP_URL ?>/" class="btn btn-primary">Back to Home</a>
     </div>
 

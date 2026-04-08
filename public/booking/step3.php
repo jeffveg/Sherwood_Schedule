@@ -146,7 +146,7 @@ render_header('Choose Date & Time', 'book');
         </div>
         <p class="text-center text-xs mb-3" style="color:var(--text-dim);">
             Don't see the date or time you need?
-            <a href="https://sherwoodadventure.com/contact-us.html" target="_blank">Contact us</a>
+            <a href="https://sherwoodadventure.com/contact.html" target="_blank">Contact us</a>
             — we may be able to accommodate special requests.
         </p>
 

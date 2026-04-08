@@ -132,7 +132,7 @@ render_header('Choose Duration', 'book');
             <p class="text-sm text-center mt-1" style="color:var(--text);">Add-ons, travel fee, and any coupons applied at checkout.</p>
             <p class="text-sm text-center mt-1" style="color:var(--orange);">
                 Need more than 6 hours?
-                <a href="https://sherwoodadventure.com/contact-us.html" target="_blank">Contact us</a>
+                <a href="https://sherwoodadventure.com/contact.html" target="_blank">Contact us</a>
                 to arrange a custom booking.
             </p>
         </div>

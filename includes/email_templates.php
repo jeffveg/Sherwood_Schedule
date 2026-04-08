@@ -138,7 +138,7 @@ function send_booking_confirmation(array $booking, array $customer, array $addon
 
         <p style='font-size:13px; color:#a0a0a0; margin:24px 0 0;'>
             Questions? Reply to this email or visit
-            <a href='https://sherwoodadventure.com/contact-us.html' style='color:#fed611;'>our contact page</a>.
+            <a href='https://sherwoodadventure.com/contact.html' style='color:#fed611;'>our contact page</a>.
         </p>
 
         <p style='font-size:13px; color:#a0a0a0; margin:8px 0 0;'>
@@ -189,7 +189,7 @@ function send_balance_payment_link(array $booking, array $customer, string $attr
 
         <p style='font-size:13px; color:#a0a0a0; margin:24px 0 0;'>
             Questions? Reply to this email or visit
-            <a href='https://sherwoodadventure.com/contact-us.html' style='color:#fed611;'>our contact page</a>.
+            <a href='https://sherwoodadventure.com/contact.html' style='color:#fed611;'>our contact page</a>.
         </p>
     ");
 
@@ -239,7 +239,7 @@ function send_balance_reminder(array $booking, array $customer, string $attracti
         </p>
         <p style='font-size:13px;color:#a0a0a0;margin:0;'>
             Questions? Reply to this email or visit
-            <a href='https://sherwoodadventure.com/contact-us.html' style='color:#fed611;'>our contact page</a>.
+            <a href='https://sherwoodadventure.com/contact.html' style='color:#fed611;'>our contact page</a>.
         </p>
     ");
 
@@ -399,7 +399,7 @@ function send_reschedule_confirmation(array $booking, array $customer, string $a
         ") . "
         <p style='font-size:13px;color:#a0a0a0;margin:24px 0 0;'>
             Questions? Reply to this email or visit
-            <a href='https://sherwoodadventure.com/contact-us.html' style='color:#fed611;'>our contact page</a>.
+            <a href='https://sherwoodadventure.com/contact.html' style='color:#fed611;'>our contact page</a>.
         </p>
     ");
 
@@ -441,7 +441,7 @@ function send_cancellation_confirmation(array $booking, array $customer, string 
         ") . "
         <p style='font-size:13px;color:#a0a0a0;margin:24px 0 0;'>
             Questions about your cancellation? Reply to this email or visit
-            <a href='https://sherwoodadventure.com/contact-us.html' style='color:#fed611;'>our contact page</a>.
+            <a href='https://sherwoodadventure.com/contact.html' style='color:#fed611;'>our contact page</a>.
         </p>
     ");
 

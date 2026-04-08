@@ -834,7 +834,7 @@ render_header('My Booking', 'lookup');
     <?php endif; ?>
 
     <p class="text-center mt-3 text-dim text-sm">
-        Questions? <a href="https://sherwoodadventure.com/contact-us.html" style="color:var(--gold);">Contact us</a>
+        Questions? <a href="https://sherwoodadventure.com/contact.html" style="color:var(--gold);">Contact us</a>
     </p>
 </div>
 

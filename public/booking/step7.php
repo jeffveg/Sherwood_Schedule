@@ -318,7 +318,7 @@ render_header('Payment', 'book');
             <p class="mt-2">
                 <a href="<?= wizard_step_url(6) ?>" class="btn btn-ghost btn-sm">&larr; Back to Review</a>
                 &nbsp;
-                <a href="https://sherwoodadventure.com/contact-us.html" class="btn btn-primary btn-sm">Contact Us</a>
+                <a href="https://sherwoodadventure.com/contact.html" class="btn btn-primary btn-sm">Contact Us</a>
             </p>
         </div>
     </div>

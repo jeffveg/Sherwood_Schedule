@@ -60,7 +60,7 @@ function render_footer(): void {
     <div class="container">
         <p>&copy; <?= $year ?> Sherwood Adventure &mdash; All rights reserved.</p>
         <p class="text-xs mt-1">
-            Questions? <a href="https://sherwoodadventure.com/contact-us.html">Contact us</a>
+            Questions? <a href="https://sherwoodadventure.com/contact.html">Contact us</a>
         </p>
     </div>
 </footer>
