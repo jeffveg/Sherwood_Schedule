@@ -5,7 +5,8 @@
    ============================================================= */
 
 /* ---- Google Fonts ----------------------------------------- */
-@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Lato:wght@300;400;700&display=swap');
+/* All four brand fonts — matches sherwoodadventure.com font stack */
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=EB+Garamond&family=Lustria&family=Lato:wght@300;400;700&display=swap');
 
 /* ---- CSS Custom Properties --------------------------------- */
 /* Brand tokens come from sherwoodadventure.com/css/brand.css  */
@@ -32,6 +33,8 @@
     --glow-gold-lg:var(--sw-glow-gold-lg);
 
     --font-heading:var(--sw-font-heading);
+    --font-sub:    var(--sw-font-sub);
+    --font-nav:    var(--sw-font-nav);
     --font-body:   var(--sw-font-body);
 
     --transition:  var(--sw-transition);
@@ -102,7 +105,7 @@ main { flex: 1; padding: 2rem 0 4rem; }
 /* ---- Header / Nav ----------------------------------------- */
 .site-header {
     background-color: var(--forest);
-    border-bottom: 2px solid var(--gold);
+    border-bottom: 4px solid var(--gold);
     box-shadow: var(--glow-gold);
     padding: 0.75rem 0;
     position: sticky;
@@ -147,17 +150,20 @@ main { flex: 1; padding: 2rem 0 4rem; }
 .site-nav { display: flex; align-items: center; gap: 0.5rem; }
 
 .site-nav a {
-    color: var(--text);
-    padding: 0.4rem 0.8rem;
+    color: var(--gold);
+    font-family: var(--font-nav);
+    font-size: 0.88rem;
+    letter-spacing: 0.02em;
+    padding: 0.45rem 0.8rem;
     border-radius: var(--radius-sm);
-    font-size: 0.9rem;
+    white-space: nowrap;
     transition: background var(--transition), color var(--transition);
 }
 
 .site-nav a:hover,
 .site-nav a.active {
-    background-color: rgba(254,214,17,0.12);
-    color: var(--gold);
+    background-color: rgba(254,214,17,0.08);
+    color: var(--orange);
 }
 
 /* ---- Footer ----------------------------------------------- */
