@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <div style="width:100%;max-width:400px;padding:1.5rem;">
     <div style="text-align:center;margin-bottom:2rem;">
-        <img src="https://sherwoodadventure.com/images/6/logo_466608_print-1--500.png"
+        <img src="https://sherwoodadventure.com/images/logo.png"
              alt="Sherwood Adventure" style="height:60px;display:inline-block;">
         <p style="font-family:var(--font-heading);font-size:1.4rem;color:var(--gold);margin:0.75rem 0 0.25rem;">Admin Panel</p>
         <p style="color:var(--text-dim);font-size:0.85rem;">Sign in to manage bookings</p>

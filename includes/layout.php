@@ -25,7 +25,7 @@ function render_header(string $title, string $active_nav = ''): void {
     <meta name="robots" content="noindex, nofollow">
     <link rel="stylesheet" href="https://sherwoodadventure.com/css/brand.css">
     <link rel="stylesheet" href="<?= $app_url ?>/assets/css/sherwood.css">
-    <link rel="icon" type="image/png" href="https://sherwoodadventure.com/images/6/logo_466608_print-1--500.png">
+    <link rel="icon" type="image/png" href="https://sherwoodadventure.com/images/logo.png">
 </head>
 <body>
 
@@ -33,12 +33,8 @@ function render_header(string $title, string $active_nav = ''): void {
     <div class="container">
         <div class="site-header__inner">
             <a href="<?= $app_url ?>/" class="site-logo">
-                <img src="https://sherwoodadventure.com/images/6/logo_466608_print-1--500.png"
-                     alt="Sherwood Adventure Logo">
-                <div>
-                    <div class="site-logo__text">Sherwood Adventure</div>
-                    <div class="site-logo__tagline">Bring the excitement of Archery to your events!</div>
-                </div>
+                <img src="https://sherwoodadventure.com/images/logo.png"
+                     alt="Sherwood Adventure">
             </a>
             <nav class="site-nav">
                 <a href="<?= $app_url ?>/"
@@ -101,12 +97,9 @@ function render_admin_header(string $title, string $active_nav = ''): void {
     <div class="container">
         <div class="site-header__inner">
             <a href="<?= $app_url ?>/admin/" class="site-logo">
-                <img src="https://sherwoodadventure.com/images/6/logo_466608_print-1--500.png"
-                     alt="Sherwood Adventure Logo" style="height:40px;">
-                <div>
-                    <div class="site-logo__text">Sherwood Adventure</div>
-                    <div class="site-logo__tagline">Admin Panel</div>
-                </div>
+                <img src="https://sherwoodadventure.com/images/logo.png"
+                     alt="Sherwood Adventure" style="height:40px;">
+                <div class="site-logo__tagline" style="font-size:0.75rem;letter-spacing:0.08em;color:var(--gold);text-transform:uppercase;">Admin Panel</div>
             </a>
             <nav class="site-nav">
                 <a href="<?= $app_url ?>/" target="_blank">Booking Site</a>
