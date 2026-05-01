@@ -493,15 +493,26 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
                 <?php if ($payments): ?>
                 <table class="detail-table">
                     <thead><tr>
-                        <th>Date</th><th>Type</th><th>Method</th><th class="text-right">Amount</th><th></th>
+                        <th>Date</th><th>Type</th><th>Method</th><th>Status</th><th class="text-right">Amount</th><th></th>
                     </tr></thead>
-                    <?php foreach ($payments as $p): ?>
-                    <tr>
+                    <?php foreach ($payments as $p):
+                        // Status badge: pending = orange (link sent, awaiting customer payment),
+                        // completed = green, failed/refunded = gray/red
+                        $status_class = match($p['status']) {
+                            'completed' => 'badge-success',
+                            'pending'   => 'badge-warning',
+                            'failed'    => 'badge-danger',
+                            default     => 'badge-default',
+                        };
+                        $is_pending = ($p['status'] !== 'completed');
+                    ?>
+                    <tr<?= $is_pending ? ' style="opacity:0.65;"' : '' ?>>
                         <td class="text-sm"><?= $p['paid_at'] ? date('M j, Y', strtotime($p['paid_at'])) : '—' ?></td>
                         <?php $type_labels = ['deposit'=>'Deposit','balance'=>'Payment','cancellation_fee'=>'Cancellation Fee','refund'=>'Refund']; ?>
                         <td><?= $type_labels[$p['payment_type']] ?? ucfirst(str_replace('_',' ',$p['payment_type'])) ?></td>
                         <td class="text-sm text-dim"><?= ucfirst(str_replace('_',' ',$p['payment_method'])) ?></td>
-                        <td class="text-right <?= $p['payment_type'] === 'refund' ? 'text-danger' : 'text-success' ?>">
+                        <td><span class="badge <?= $status_class ?>"><?= ucfirst($p['status']) ?></span></td>
+                        <td class="text-right <?= $p['payment_type'] === 'refund' ? 'text-danger' : ($is_pending ? 'text-dim' : 'text-success') ?>">
                             <?= $p['payment_type'] === 'refund' ? '−' : '' ?>$<?= number_format($p['amount'], 2) ?>
                         </td>
                         <td>
@@ -517,7 +528,7 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
                     </tr>
                     <?php if ($p['square_payment_id']): ?>
                     <tr>
-                        <td colspan="5" class="text-xs text-dim" style="padding-bottom:6px;">
+                        <td colspan="6" class="text-xs text-dim" style="padding-bottom:6px;">
                             Square Txn: <code><?= htmlspecialchars($p['square_payment_id']) ?></code>
                         </td>
                     </tr>
