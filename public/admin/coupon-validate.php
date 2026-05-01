@@ -49,9 +49,10 @@ if ($type === 'percent') {
 }
 
 echo json_encode([
-    'valid'  => true,
-    'type'   => $type,
-    'value'  => $value,
-    'label'  => $label,
-    'code'   => $coupon['code'],
+    'valid'      => true,
+    'type'       => $type,
+    'value'      => $value,
+    'label'      => $label,
+    'code'       => $coupon['code'],
+    'applies_to' => $coupon['applies_to'],   // 'attraction' | 'addons' | 'both'
 ]);

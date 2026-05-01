@@ -816,19 +816,30 @@ render_admin_header('New Booking', 'new-booking');
             travelRow.style.display = 'none';
         }
 
-        // Taxable subtotal before coupon (attraction + taxable addons)
-        const taxableRaw = attrPrice + addonsTaxable;
+        // Add-on subtotals (matches PHP $addons_subtotal which sums BOTH taxable + non-taxable)
+        const addonsSubtotal = addonsTaxable + addonsNonTaxable;
 
         // ── Coupon discount ───────────────────────────────────────────────────
+        // Mirrors includes/pricing.php :: calc_coupon_discount() and the discount
+        // distribution in build_price_summary(). The discount base depends on
+        // applies_to ('attraction' | 'addons' | 'both'); the discount is then
+        // applied first to the attraction price, then to taxable add-ons.
         let couponDiscount = 0;
         const couponRow = document.getElementById('ps-coupon');
         if (activeCoupon) {
+            let base = 0;
+            if      (activeCoupon.applies_to === 'attraction') base = attrPrice;
+            else if (activeCoupon.applies_to === 'addons')     base = addonsSubtotal;
+            else /* 'both' */                                  base = attrPrice + addonsSubtotal;
+
             if (activeCoupon.type === 'percent') {
-                couponDiscount = Math.round(taxableRaw * (activeCoupon.value / 100) * 100) / 100;
+                couponDiscount = Math.round(base * (activeCoupon.value / 100) * 100) / 100;
             } else {
-                // flat amount — cap at taxable subtotal so we don't go negative
-                couponDiscount = Math.min(activeCoupon.value, taxableRaw);
+                // flat amount — capped at the base it applies to (server does the same)
+                couponDiscount = Math.min(activeCoupon.value, base);
             }
+            couponDiscount = Math.round(couponDiscount * 100) / 100;
+
             document.getElementById('ps-coupon-label').textContent = activeCoupon.label;
             document.getElementById('ps-coupon-val').textContent   = '−' + fmt(couponDiscount);
             couponRow.style.display = '';
@@ -836,8 +847,13 @@ render_admin_header('New Booking', 'new-booking');
             couponRow.style.display = 'none';
         }
 
-        // Taxable subtotal after coupon
-        const taxableSubtotal = Math.max(0, taxableRaw - couponDiscount);
+        // Distribute discount: attraction first, then taxable addons
+        // (matches build_price_summary() lines 137-139)
+        const discountOnAttraction = Math.min(couponDiscount, attrPrice);
+        const discountOnAddons     = Math.max(0, couponDiscount - discountOnAttraction);
+        const taxableSubtotal      = Math.max(0,
+            (attrPrice - discountOnAttraction) + (addonsTaxable - discountOnAddons)
+        );
 
         // Tax (applied to post-discount taxable subtotal)
         const totalTaxRate = taxRates.reduce((s, r) => s + r, 0);
