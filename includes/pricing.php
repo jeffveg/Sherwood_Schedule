@@ -58,22 +58,39 @@ function calc_travel_fee(float $miles, float $threshold, float $rate_per_mile): 
 }
 
 /**
+ * Categorize a tax_config row's label into 'state', 'county', or 'city'.
+ *
+ * NOTE: This is a heuristic based on common keywords in the label. If admins
+ * rename a tax to something that doesn't contain any of these keywords, it
+ * falls through to 'state' as the safe default. The TOTAL tax stays correct
+ * either way — only the breakdown reporting is affected.
+ *
+ * Convention: tax_config labels should contain one of: state, county, city,
+ * or the local city/county name (goodyear, maricopa).
+ */
+function categorize_tax_label(string $label): string {
+    $l = strtolower($label);
+    if (str_contains($l, 'city') || str_contains($l, 'goodyear')) {
+        return 'city';
+    }
+    if (str_contains($l, 'county') || str_contains($l, 'maricopa')) {
+        return 'county';
+    }
+    // Default — state-level (most universal)
+    return 'state';
+}
+
+/**
  * Calculate full tax breakdown.
  * Returns ['state' => float, 'county' => float, 'city' => float, 'total' => float]
  */
 function calc_tax(float $taxable_amount, array $tax_rates): array {
     $result = ['state' => 0.0, 'county' => 0.0, 'city' => 0.0, 'total' => 0.0];
     foreach ($tax_rates as $rate) {
-        $label = strtolower($rate['label']);
-        $amount = round($taxable_amount * (float)$rate['rate'], 2);
-        if (str_contains($label, 'state')) {
-            $result['state'] += $amount;
-        } elseif (str_contains($label, 'county')) {
-            $result['county'] += $amount;
-        } else {
-            $result['city'] += $amount;
-        }
-        $result['total'] += $amount;
+        $amount   = round($taxable_amount * (float)$rate['rate'], 2);
+        $category = categorize_tax_label($rate['label']);
+        $result[$category] += $amount;
+        $result['total']   += $amount;
     }
     $result['total'] = round($result['total'], 2);
     return $result;

@@ -127,19 +127,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $attraction, $pricing, $hours, $selected_addons,
             $coupon, $travel_miles, $travel_config, $tax_rates
         );
-        // Override travel fee if manually set (or miles unknown)
+        // Override travel fee with the manual admin-entered value
         $summary['travel_fee'] = $travel_fee;
-        // Recalc grand total with manual travel fee
-        $summary['grand_total'] = round(
-            $summary['taxable_subtotal']
-            + ($summary['addons_subtotal'] - ($summary['taxable_subtotal'] - $summary['attraction_price'] + $summary['coupon_discount']))
-            + $summary['tax_total']
-            + $travel_fee,
-            2
-        );
 
-        // Recalculate grand total properly
-        // taxable_subtotal already has coupon applied; non-taxable addons added separately
+        // Recalculate grand total with the manual travel fee.
+        // taxable_subtotal already has the coupon applied; non-taxable addons are
+        // summed directly here and added separately (they don't get taxed/discounted).
         $non_taxable = 0.0;
         foreach ($selected_addons as $item) {
             if (!$item['addon']['is_taxable']) {
@@ -180,18 +173,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $end_time        = date('H:i:s', $end_ts);
         $crosses_midnight = (date('Y-m-d', $end_ts) !== $event_date) ? 1 : 0;
 
-        // Tax split
+        // Tax split — uses categorize_tax_label() from pricing.php so admin
+        // and customer-wizard paths categorize identically.
         $tax_state = $tax_county = $tax_city = 0.0;
         foreach ($tax_rates as $rate) {
             $amt = round($summary['taxable_subtotal'] * (float)$rate['rate'], 2);
-            $lbl = strtolower($rate['label']);
-            if (str_contains($lbl, 'city') || str_contains($lbl, 'goodyear')) {
-                $tax_city += $amt;
-            } elseif (str_contains($lbl, 'county')) {
-                $tax_county += $amt;
-            } else {
-                $tax_state += $amt;
-            }
+            $cat = categorize_tax_label($rate['label']);
+            if      ($cat === 'city')   $tax_city   += $amt;
+            elseif  ($cat === 'county') $tax_county += $amt;
+            else                        $tax_state  += $amt;
         }
 
         $db->beginTransaction();

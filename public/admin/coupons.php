@@ -330,7 +330,7 @@ render_admin_header('Coupons', 'coupons');
                             <?= $c['active'] ? 'Disable' : 'Enable' ?>
                         </button>
                     </form>
-                    <?php if ($c['use_count'] == 0): ?>
+                    <?php if ((int)$c['use_count'] === 0): ?>
                     <form method="POST" style="display:inline;"
                           onsubmit="return confirm('Delete coupon <?= htmlspecialchars(addslashes($c['code'])) ?>?')">
                         <?= csrf_field() ?>

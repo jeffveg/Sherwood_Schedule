@@ -624,8 +624,16 @@ render_admin_header('Booking ' . $booking['booking_ref'], 'bookings');
                         </div>
                         <div class="form-group">
                             <label class="form-label">Cancellation Fee ($) <span class="text-dim">(0 = none)</span></label>
+                            <?php
+                            // Only pre-fill the stored fee if the booking is actually
+                            // cancelled — otherwise default to 0 so admin doesn't see
+                            // a stale number from a prior (reverted) cancellation.
+                            $cf_value = $booking['booking_status'] === 'cancelled'
+                                ? number_format((float)$booking['cancellation_fee'], 2)
+                                : '0.00';
+                            ?>
                             <input type="number" name="cancellation_fee" class="form-input" step="0.01" min="0"
-                                   value="<?= number_format($booking['cancellation_fee'], 2) ?>">
+                                   value="<?= $cf_value ?>">
                         </div>
                         <div class="form-group">
                             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.875rem;">
