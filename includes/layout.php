@@ -89,6 +89,7 @@ function render_admin_header(string $title, string $active_nav = ''): void {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= h($title) ?> — Sherwood Admin</title>
     <meta name="robots" content="noindex, nofollow">
+    <link rel="stylesheet" href="https://sherwoodadventure.com/css/brand.css">
     <link rel="stylesheet" href="<?= $app_url ?>/assets/css/sherwood.css">
 </head>
 <body>

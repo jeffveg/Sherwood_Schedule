@@ -242,8 +242,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $tax_state, $tax_county, $tax_city, $summary['tax_total'],
                 $summary['grand_total'], $deposit_amount, $payment_option,
                 $amount_paid, $balance_due,
-                $payment_status,
-                $admin_notes ?: null,
+                'confirmed',          // booking_status — admin bookings are always confirmed
+                $payment_status,      // payment_status
+                $admin_notes ?: null, // admin_notes
             ]);
             $booking_id = (int)$db->lastInsertId();
 
@@ -654,6 +655,11 @@ render_admin_header('New Booking', 'new-booking');
     const dateWarn      = document.getElementById('date-booked-warn');
     const selPayOpt     = document.getElementById('sel-pay-option');
     const payMethodRow  = document.getElementById('pay-method-row');
+    const inpCoupon     = document.querySelector('input[name="coupon_code"]');
+
+    // ── Coupon state ──────────────────────────────────────────────────────────
+    // Populated by validateCoupon(); reset to null when code is cleared.
+    let activeCoupon = null;  // { type, value, label, code } or null
 
     // Show/hide payment method row
     selPayOpt.addEventListener('change', function () {
@@ -684,6 +690,38 @@ render_admin_header('New Booking', 'new-booking');
             })
             .catch(() => {});
     });
+
+    // ── Coupon validation ─────────────────────────────────────────────────────
+    // Validate on blur (when leaving the field) or when the user presses Enter.
+    function validateCoupon() {
+        const code = (inpCoupon.value || '').trim().toUpperCase();
+        if (!code) {
+            activeCoupon = null;
+            recalc();
+            return;
+        }
+        fetch(APP_URL + '/admin/coupon-validate.php?code=' + encodeURIComponent(code))
+            .then(r => r.json())
+            .then(data => {
+                activeCoupon = data.valid ? data : null;
+                recalc();
+            })
+            .catch(() => {
+                activeCoupon = null;
+                recalc();
+            });
+    }
+
+    if (inpCoupon) {
+        inpCoupon.addEventListener('blur',  validateCoupon);
+        inpCoupon.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); validateCoupon(); }
+        });
+        // Clear coupon state when field is emptied
+        inpCoupon.addEventListener('input', function () {
+            if (!this.value.trim()) { activeCoupon = null; recalc(); }
+        });
+    }
 
     // Attraction change → update hours hint, filter addons, recalc
     selAttraction.addEventListener('change', updateAttractionUI);
@@ -778,10 +816,30 @@ render_admin_header('New Booking', 'new-booking');
             travelRow.style.display = 'none';
         }
 
-        // Taxable subtotal (attraction + taxable addons)
-        const taxableSubtotal = attrPrice + addonsTaxable;
+        // Taxable subtotal before coupon (attraction + taxable addons)
+        const taxableRaw = attrPrice + addonsTaxable;
 
-        // Tax
+        // ── Coupon discount ───────────────────────────────────────────────────
+        let couponDiscount = 0;
+        const couponRow = document.getElementById('ps-coupon');
+        if (activeCoupon) {
+            if (activeCoupon.type === 'percent') {
+                couponDiscount = Math.round(taxableRaw * (activeCoupon.value / 100) * 100) / 100;
+            } else {
+                // flat amount — cap at taxable subtotal so we don't go negative
+                couponDiscount = Math.min(activeCoupon.value, taxableRaw);
+            }
+            document.getElementById('ps-coupon-label').textContent = activeCoupon.label;
+            document.getElementById('ps-coupon-val').textContent   = '−' + fmt(couponDiscount);
+            couponRow.style.display = '';
+        } else {
+            couponRow.style.display = 'none';
+        }
+
+        // Taxable subtotal after coupon
+        const taxableSubtotal = Math.max(0, taxableRaw - couponDiscount);
+
+        // Tax (applied to post-discount taxable subtotal)
         const totalTaxRate = taxRates.reduce((s, r) => s + r, 0);
         const taxAmt       = Math.round(taxableSubtotal * totalTaxRate * 100) / 100;
         document.getElementById('ps-tax-label').textContent = 'Tax (' + (totalTaxRate * 100).toFixed(2) + '%)';
@@ -811,9 +869,10 @@ render_admin_header('New Booking', 'new-booking');
 
     selPayOpt.addEventListener('change', recalc);
 
-    // Init
+    // Init — if a coupon code is pre-filled (form re-display after error), validate it
     updateAttractionUI();
     recalc();
+    if (inpCoupon && inpCoupon.value.trim()) { validateCoupon(); }
 })();
 </script>
 
