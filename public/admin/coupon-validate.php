@@ -40,7 +40,7 @@ if (!$coupon) {
 
 // Build a human-readable label
 $type  = $coupon['discount_type'];   // 'percent' or 'flat'
-$value = (float)$coupon['discount_value'];
+$value = (float)$coupon['discount_amount'];
 
 if ($type === 'percent') {
     $label = number_format($value, 0) . '% off';
