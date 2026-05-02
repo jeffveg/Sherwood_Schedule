@@ -225,7 +225,7 @@ if (!$error && $booking_id && (int)wizard_get('allow_publish') === 1
 
     $intake_payload = json_encode([
         'intake_ref'     => $booking_ref,
-        'title'          => $attraction['name'],
+        'title'          => $attraction['name'] ?? 'Sherwood Adventure Event',
         'start_datetime' => $event_date . ' ' . $start_time,
         'end_datetime'   => $event_date . ' ' . $end_time,
         'description'    => wizard_get('event_notes') ?: '',
@@ -247,10 +247,17 @@ if (!$error && $booking_id && (int)wizard_get('allow_publish') === 1
     ]);
     $intake_resp = curl_exec($ch);
     $intake_code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    // Capture curl-level error (DNS, TLS, timeout) BEFORE close. If the
+    // request never reached HTTP, $intake_code is 0 and curl_error has
+    // the actual reason — much more useful in the log than just "HTTP 0".
+    $intake_err  = $intake_code === 0 ? curl_error($ch) : '';
     curl_close($ch);
 
     if ($intake_code !== 201 && $intake_code !== 200) {
-        error_log("Events intake failed for $booking_ref: HTTP $intake_code — $intake_resp");
+        $detail = $intake_err !== ''
+            ? "curl error: $intake_err"
+            : (string)$intake_resp;
+        error_log("Events intake failed for $booking_ref: HTTP $intake_code — $detail");
     }
 }
 
