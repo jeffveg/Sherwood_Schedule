@@ -40,3 +40,10 @@ define('APP_NAME', 'Sherwood Adventure');
 define('APP_TIMEZONE', 'America/Phoenix');
 define('BOOKING_LEAD_DAYS', 14);       // minimum days in advance to book
 define('CANCELLATION_DAYS', 14);       // days before event for penalty-free cancel
+
+// Events intake — push draft events to events.sherwoodadventure.com
+// when the customer has set allow_publish=1 on their booking. The API key
+// must match INTAKE_API_KEY in the events app's config.php.
+// See https://github.com/jeffveg/sherwood_events/blob/main/INTAKE.md
+define('EVENTS_INTAKE_URL',     'https://events.sherwoodadventure.com/api/intake.php');
+define('EVENTS_INTAKE_API_KEY', 'paste-the-same-value-as-events-INTAKE_API_KEY');

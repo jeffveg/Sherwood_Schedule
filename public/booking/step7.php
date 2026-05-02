@@ -204,6 +204,56 @@ if (!wizard_get('booking_id')) {
 $booking_id  = wizard_get('booking_id');
 $booking_ref = wizard_get('booking_ref');
 
+// ── Push draft event to events.sherwoodadventure.com ──────────────────────
+// If the customer asked for their event to be listed publicly, fire a one-shot
+// JSON POST to the events intake API. The receiving side stores it as a
+// draft — admin reviews and publishes from the events admin UI. We never
+// fail the booking on this; if the events site is unreachable, we just log
+// and the admin will notice the missing draft on their next admin visit.
+if (!$error && $booking_id && (int)wizard_get('allow_publish') === 1
+    && defined('EVENTS_INTAKE_URL') && defined('EVENTS_INTAKE_API_KEY')
+    && EVENTS_INTAKE_URL !== '' && EVENTS_INTAKE_API_KEY !== '') {
+
+    $venue_full = trim(
+        (wizard_get('venue_address') ?: '') . ', ' .
+        (wizard_get('venue_city')    ?: '') . ', ' .
+        (wizard_get('venue_state')   ?: '') . ' ' .
+        (wizard_get('venue_zip')     ?: '')
+    );
+    $venue_full = trim(preg_replace('/[\s,]+/', ' ', $venue_full)
+                       ?? '', " ,");
+
+    $intake_payload = json_encode([
+        'intake_ref'     => $booking_ref,
+        'title'          => $attraction['name'],
+        'start_datetime' => $event_date . ' ' . $start_time,
+        'end_datetime'   => $event_date . ' ' . $end_time,
+        'description'    => wizard_get('event_notes') ?: '',
+        'location_name'  => wizard_get('venue_name')  ?: '',
+        'location_addr'  => $venue_full,
+    ]);
+
+    $ch = curl_init(EVENTS_INTAKE_URL);
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $intake_payload,
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'X-API-Key: ' . EVENTS_INTAKE_API_KEY,
+        ],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 5,
+        CURLOPT_CONNECTTIMEOUT => 3,
+    ]);
+    $intake_resp = curl_exec($ch);
+    $intake_code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($intake_code !== 201 && $intake_code !== 200) {
+        error_log("Events intake failed for $booking_ref: HTTP $intake_code — $intake_resp");
+    }
+}
+
 // ── Create Square Payment Link ─────────────────────────────────────────────
 if (!$error && $booking_id && !wizard_get('square_payment_url')) {
 
